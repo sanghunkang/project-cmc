@@ -29,7 +29,7 @@ print(sys.platform)
 image = io.imread("C:\\dev\\project-cucm\\data_light\\bmp\\I0000001.BMP")
 
 # Create Afine transform
-tform_aff = tf.AffineTransform(shear=-0.1)
+tform_aff = tf.AffineTransform(shear=0.2)
 modified_aff = tf.warp(image, tform_aff)
 
 io.imshow(modified_aff)
