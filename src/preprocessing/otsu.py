@@ -16,6 +16,7 @@ DIR_DATA_LIGHT = ""
 DIR_DATA_LUNG = "C:\\dev-data\\LUNG\\01\\"
 fname = "KoSDI_008.JPG"
 fpath = DIR_DATA_LUNG + fname
+fpath = "C:\\dev\\project-cucm\\data_light\\bmp\\I0000001.BMP"
 
 img = cv2.imread(fpath ,0)
 ret,thresh1 = cv2.threshold(img,127,255,cv2.THRESH_BINARY)
