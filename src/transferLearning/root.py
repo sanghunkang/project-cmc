@@ -2,12 +2,14 @@
 # -*- coding: utf-8 -*-
 
 import tensorflow as tf
+import matplotlib.pyplot as plt
 import numpy as np
 
 # sess = tf.Session()
 # imgs = tf.placeholder(tf.float32, [None, 224, 224, 3])
 
 DIR_DATA_WEIGHTPRETRAINED = "C:\\dev-data\\weightPretrained\\"
+DIR_DATA_WEIGHTPRETRAINED = "../../../../dev-data/weightPretrained/"
 
 # VGGNet
 print("++++++++++ VGGNet ++++++++++")
@@ -22,88 +24,66 @@ def reformat_params(dict_lyr):
 
 dict_lyr = np.load(DIR_DATA_WEIGHTPRETRAINED + "vgg16.npy", encoding = "latin1").item() # return dict
 dict_params = reformat_params(dict_lyr)
+
 keys = []
 for x in dict_params: keys.append(x)
+
 keys.sort()
-for key in keys: print(key, dict_params[key])
+
 
 # GoogLeNet
 # print("++++++++++ GoogLeNet ++++++++++")
 # aa = np.load("pretrained\\googlenet.npy", encoding = 'latin1').item() # return dict
 # for a in aa: print(a, aa[a]["biases"].shape, aa[a]["weights"].shape)
 
+import PIL.Image as Image
 
-##############################################################################
-# def feed_dict(train):
-# 	"""Make a TensorFlow feed_dict: maps data onto Tensor placeholders."""
-# 	if train:
-# 		xs, ys = batch_x, batch_y
-# 		k = params['dropout']
-# 	else:
-# 		batch_test = data_test[np.random.choice(data_test.shape[0], size=batch_size,  replace=True)]
-# 		xs, ys =  batch_test[:,:4096*3], batch_test[:,4096*3:]
-# 		k = 1.0
-# 	return {x: xs, y: ys, keep_prob: k}
+img = Image.open("../../data_light/bmp/I0000001.BMP")
+img = img.resize((224,224))
+arr_img = np.asarray(img, dtype=np.float32)
+print(arr_img.shape)
+print(arr_img.dtype)
 
-# # RUNNING THE COMPUTATIONAL GRAPH
-# # Define saver 
-# merged = tf.summary.merge_all()
-# saver = tf.train.Saver()
+for key in keys: print(key, dict_params[key])
 
-# # Launch the graph
-# with tf.Session() as sess:
-# 	summaries_dir = '.\\logs'
-# 	train_writer = tf.summary.FileWriter(summaries_dir + '\\train', sess.graph)
-# 	test_writer = tf.summary.FileWriter(summaries_dir + '\\test')
-# 	tf.global_variables_initializer().run()
-# 	step = 1
 
-# 	with tf.device('/gpu:0'):
-# 		# Restore saved model if any
-# 		try:
-# 			saver.restore(sess, '.\\model\\model.ckpt')
-# 			print('Model restored')
-# 			epoch_saved = data_saved['var_epoch_saved'].eval()
-# 		except tf.errors.NotFoundError:
-# 			print('No saved model found')
-# 			epoch_saved = 0
-# 		except tf.errors.InvalidArgumentError:
-# 			print('Model structure has change. Rebuild model')
-# 			epoch_saved = 0
+def conv2d(x, W, b, strides=1):
+	# Conv2D wrapper, with bias and relu activation
+	x = tf.nn.conv2d(x, W, strides=[1, strides, strides, 1], padding='SAME')
+	x = tf.nn.bias_add(x, b)
+	return tf.nn.relu(x)
 
-# 		# Training cycle
-# 		print(epoch_saved)
-# 		# batch = data_training[np.random.choice(data_training.shape[0], size=batch_size,  replace=True)]
-# 		for epoch in range(epoch_saved, epoch_saved + training_epochs):
-# 			batch = data_training[np.random.choice(data_training.shape[0], size=batch_size,  replace=True)]
-# 			batch_x = batch[:, :4096*3]
-# 			batch_y = batch[:, 4096*3:]
-# 			# Run optimization op (backprop)
-# 			sess.run(optimizer, feed_dict={x: batch_x, y: batch_y, keep_prob: params['dropout']})
-# 			if epoch % display_step == 0:
-# 				# Calculate batch loss and accuracy
-# 				loss, acc = sess.run([cost, accuracy], feed_dict={x: batch_x, y: batch_y, keep_prob: 1.})
-		
-# 				# batch_test = data_test[np.random.choice(data_test.shape[0], size=batch_size,  replace=True)]
-# 				# Validation
-# 				# acc_test = sess.run(accuracy, feed_dict={x: batch_test[:,:4096*3], y: batch_test[:,4096*3:], keep_prob: 1.})
-# 				print('Epoch ' + str(epoch) + ', Minibatch Loss= ' + '{:.6f}'.format(loss) + ', Training Accuracy= ' + '{:.5f}'.format(acc))# + ', Validation Accuracy= ' + '{:.5f}'.format(acc_test))
+def maxpool2d(x, k=2):
+	# MaxPool2D wrapper
+	return tf.nn.max_pool(x, ksize=[1, k, k, 1], strides=[1, k, k, 1], padding='SAME')
 
-# 				# batch = data_training[np.random.choice(data_training.shape[0], size=batch_size,  replace=True)]
+# X = tf.convert_to_tensor(arr_img, dtype=tf.float32)
+tsr_X = tf.reshape(arr_img, shape=[-1, 224, 224, 3])
 
-# 			# if epoch % 10 == 0:  # Record summaries and test-set accuracy
-# 			summary, acc = sess.run([merged, accuracy], feed_dict=feed_dict(False))
-# 			test_writer.add_summary(summary, epoch)
-# 			print('Accuracy at step %s: %s' % (epoch, acc))
-# 			# else:  # Record train set summaries, and train
-# 			summary, _ = sess.run([merged, optimizer], feed_dict=feed_dict(True))
-# 			train_writer.add_summary(summary, epoch)
+# Convolution and max pooling(down-sampling) Layer
+conv11 = conv2d(tsr_X, dict_params['conv1_1_W'], dict_params['conv1_1_b'])
+conv12 = conv2d(conv11, dict_params['conv1_2_W'], dict_params['conv1_2_b'])
+# conv13 = conv2d(conv12, dict_params['conv1_3_W'], dict_params['conv1_3_b'])
+
+
+# conv13 = maxpool2d(conv13, k=2)
+
+# # Convolution and max pooling(down-sampling) Layer
+# conv21 = conv2d(conv13, dict_params['conv1_1_W'], dict_params['b_conv21'])
+# conv22 = conv2d(conv21, dict_params['W_conv22'], dict_params['b_conv22'])
+# conv23 = conv2d(conv22, dict_params['W_conv23'], dict_params['b_conv23'])
+# conv23 = maxpool2d(conv23, k=2)
+
+with tf.Session() as sess:
+	# Initialise the variables and run
+	init = tf.global_variables_initializer()
+	sess.run(init)
 	
-# 		print('Optimisation Finished!')
+	with tf.device("/cpu:0"):
+		conv23 = conv12.eval()[0]
+		conv23 = np.swapaxes(conv23, 0, 2) # (16(x),16(y),64)
+		conv23 = np.swapaxes(conv23, 1, 2) # (64,16(x),16(y))
 
-# 		# Save the variables
-# 		epoch_new = epoch_saved + training_epochs
-# 		sess.run(data_saved['var_epoch_saved'].assign(epoch_saved + training_epochs))
-# 		print(data_saved['var_epoch_saved'].eval())
-# 		save_path = saver.save(sess, '.\\model\\model.ckpt')
-# 		print('Model saved in file: %s' % save_path)
+		for rec in conv23[0:4]:
+			plt.imshow(rec)
+			plt.show()
