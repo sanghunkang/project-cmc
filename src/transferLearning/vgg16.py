@@ -82,8 +82,11 @@ conv4p = maxpool2d(conv42, k=2)
 conv51 = conv2d(conv4p, params_pre['conv5_1_W'], params_pre['conv5_1_b'])
 conv52 = conv2d(conv51, params_pre['conv5_2_W'], params_pre['conv5_2_b'])
 conv5p = maxpool2d(conv52, k=2)
+print(conv5p.get_shape())
 
 fc6 = tf.reshape(conv5p, [-1, params_pre["fc6_W"].get_shape().as_list()[0]])
+print(fc6.get_shape())
+
 
 # Fully connected layer (and Apply Dropout)
 # Training is done here
@@ -109,10 +112,10 @@ with tf.Session() as sess:
 		fc8_eval = fc8.eval()[0]
 		print(np.argmax(fc8_eval))
 
-		conv23_eval = conv52.eval()[0]
+		conv23_eval = conv22.eval()[0]
 		conv23_eval = np.swapaxes(conv23_eval, 0, 2) # (16(x),16(y),64)
 		conv23_eval = np.swapaxes(conv23_eval, 1, 2) # (64,16(x),16(y))
 
-		# for rec in conv23_eval[0:4]:
-		# 	plt.imshow(rec, cmap="gray")
-		# 	plt.show()
+		for rec in conv23_eval[0:4]:
+			plt.imshow(rec, cmap="gray")
+			plt.show()
