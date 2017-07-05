@@ -1,39 +1,46 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-#영상번호,병형L,병형R,SHAPE,SIZE,,,,,,,,,,,
-# Import external party packages
+
+# Import built-in packages
 import os, subprocess, sys, shutil
 
-DIR_DATA_LIGHT = ""
-DIR_DATA_LUNG = "C:\\dev-data\\LUNG\\"
-DIR_DATA_LUNG_SUM = "C:\\dev-data\\LUNG\\SUM\\"
-# fname = "KoSDI_008.JPG"
-# fpath = DIR_DATA_LUNG + fname
-# fpath = "C:\\dev\\project-cucm\\data_light\\bmp\\I0000001.BMP"
+# Define constants (mostly paths of directories)
+DIR_DATA_LABEL = "C:\\dev-data\\labels\\"
+DIR_DATA_RAW_LUNG = "C:\\dev-data\\raw-LUNG\\"
+DIR_DATA_LABELLED_C00 = "C:\\dev-data\\labelled-C00\\"
+DIR_DATA_LABELLED_CNN = "C:\\dev-data\\labelled-CNN\\"
 
+# Check on which system the programme is running
 print(sys.platform)
 
-seq_subdir = []
-# for subdir in os.listdir(DIR_DATA_LUNG):
-# 	if len(subdir) < 5: seq_subdir.append(DIR_DATA_LUNG + subdir + "\\")
-
-# for subdir in seq_subdir: print(subdir)
-
-with open(DIR_DATA_LUNG + "labelling.txt", "r") as fr:
+# Open CSV
+with open(DIR_DATA_LABEL + "label_LUNG.csv", "r") as fr:
 	line = fr.readline()
 
+	# Iterate as long as the given line is good enough
 	while len(line)>2:
 		line = fr.readline()
+		print(line)
 
+		# The element of the 0th position is the fname
+		# The element of the 2th position is the size and shape
 		fname = line.split(",")[0]
-		char_l = line.split(",")[1]
-		char_r = line.split(",")[2]
-		shape = line.split(",")[3]
-		size = line.split(",")[4]
+		sizeshape = line.split(",")[1]
+
+		# Define source(i.e. original file) of given image file
+		fpath_src = DIR_DATA_RAW_LUNG + sizeshape  + "\\" + fname.replace("-","_") + ".JPG"
 		
-		fpath_src = DIR_DATA_LUNG + char_l + char_r  + "\\" + fname.replace("-","_") + ".JPG"
-		fpath_dst = DIR_DATA_LUNG_SUM + fname  + "_" + char_l + char_r  + "_" + shape + size + ".JPG"
+		# Define destination path of given image file
+		# Classify as normal - C00 - if sizeshape is 00, as abnormal otherwise
+		# Images of normal case go to directory ending with C00, others go to CNN (for now)
+		# ... plus trivial revision of filename
+		if sizeshape in ["00"]:
+			fpath_dst = DIR_DATA_LABELLED_C00 + "C00_" + fname.replace("-","") + ".JPG"
+		else:
+			fpath_dst = DIR_DATA_LABELLED_CNN + "C" + sizeshape + "_" + fname.replace("-","") + ".JPG"
+
 		print(fpath_src)
 		print(fpath_dst)
 
+		# Copy fpath_src to fpath_dst
 		shutil.copyfile(fpath_src, fpath_dst)
