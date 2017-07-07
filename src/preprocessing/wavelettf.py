@@ -11,7 +11,10 @@ import pywt
 
 # Open image
 # img = Image.open("C:\\dev\\project-cucm\\data_light\\bmp\\I0000001.BMP")
-img = Image.open("C:\\dev\\project-cucm\\data_light\\bmp\\I0000001_crop.BMP")
+# img = Image.open("C:\\dev\\project-cucm\\data_light\\bmp\\10028041.bmp")
+# img = Image.open("C:\\dev\\project-cucm\\data_light\\bmp\\24362776.bmp")
+img = Image.open("C:\\dev\\project-cucm\\data_light\\bmp\\cc.PNG")
+# img = Image.open("C:\\dev\\project-cucm\\data_light\\bmp\\I0000001_crop.BMP")
 # img = Image.open("C:\\dev\\project-cucm\\data_light\\bmp\\lena512.BMP")
 # img = Image.open("C:\\dev\\project-cucm\\data_light\\bmp\\Lichtenstein.png")
 
@@ -31,14 +34,32 @@ _, cA = pywt.dwt(cA, 'db2', axis=1)
 
 # Show results, people don't believe written results
 # cA = LL, cH = LH, cV = HL, cD = HH
-cA, (cH, cV, cD) = pywt.dwt2(arr_img, 'haar')
+LL1, (cH, cV, cD) = pywt.dwt2(arr_img, 'haar')
 
-plt.imshow(cA, 'gray')
+plt.imshow(LL1, 'gray')
 plt.show()
 
 for x in (cH, cV, cD):
 	plt.imshow(x, 'gray')
 	plt.show()
+
+LL2, (cH, cV, cD) = pywt.dwt2(LL1, 'haar')
+plt.imshow(LL2, 'gray')
+plt.show()
+
+for x in (cH, cV, cD):
+	plt.imshow(x, 'gray')
+	plt.show()
+
+
+LL3, (cH, cV, cD) = pywt.dwt2(LL2, 'haar')
+plt.imshow(LL3, 'gray')
+plt.show()
+
+for x in (cH, cV, cD):
+	plt.imshow(x, 'gray')
+	plt.show()
+
 
 
 # plt.imshow(cA_H, 'binary')

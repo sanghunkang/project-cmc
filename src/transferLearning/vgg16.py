@@ -10,7 +10,6 @@ DIR_DATA_WEIGHTPRETRAINED = "C:\\dev-data\\weightPretrained\\"
 
 # VGGNet
 print("++++++++++ VGGNet ++++++++++")
-# aa = np.load("pretrained\\vgg16.npz")
 
 def reformat_params(dict_lyr):
 	params_pre = {}
