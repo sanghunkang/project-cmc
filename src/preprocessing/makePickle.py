@@ -14,23 +14,27 @@ import PIL.Image as Image
 # Import built-in packages
 
 # Define constants (mostly paths of directories)
-DIR_DATA_LABELLED_C00 = "C:\\dev-data\\labelled-C00\\"
-DIR_DATA_LABELLED_CNN = "C:\\dev-data\\labelled-CNN\\"
+DIR_DATA_LABELLED_C00_TRAIN = "C:\\dev-data\\labelled-C00-train\\"
+DIR_DATA_LABELLED_CNN_TRAIN = "C:\\dev-data\\labelled-CNN-train\\"
+DIR_DATA_LABELLED_C00_TEST = "C:\\dev-data\\labelled-C00-test\\"
+DIR_DATA_LABELLED_CNN_TEST = "C:\\dev-data\\labelled-CNN-test\\"
 DIR_DATA_PICKLE = "C:\\dev-data\\pickle\\"
 
-len_h = 224*4
-len_w = 224*4
+len_h = 224#*4
+len_w = 224#*4
+len_c = 3
 n_class = 2 # Normal & abnormal
 
-def dir_to_pickle(dir_src, dir_pickle, resolution, vec_class):
-	len_h, len_w = resolution
+def dir_to_pickle(dir_src, resolution, vec_class):
+	len_h, len_w, len_c = resolution
 
-	seq_fpath_C00 = os.listdir(dir_src)
+	seq_fpath = os.listdir(dir_src)
 
-	seq_train_normal = np.zeros(shape=(len(seq_fpath_C00), len_h*len_w + n_class))
-	for i, fpath_C00 in enumerate(seq_fpath_C00):
-		print(fpath_C00)
-		img = Image.open(dir_src + fpath_C00)
+	seq_rec = np.zeros(shape=(len(seq_fpath), len_h*len_w*len_c + n_class), dtype=np.float32)
+	for i, fpath in enumerate(seq_fpath):
+		print(fpath)
+		raw_img = Image.open(dir_src + fpath)
+		img = raw_img.convert('RGB')
 		size_img = img.size
 		
 		min_side = min(size_img)
@@ -40,18 +44,36 @@ def dir_to_pickle(dir_src, dir_pickle, resolution, vec_class):
 		img_resize = img_crop.resize((len_h, len_w))
 
 		arr_img = np.asarray(img_resize)
-		if len(arr_img.shape) == 3:
-			arr_img = np.swapaxes(arr_img, 0, 2)
-			arr_img = np.swapaxes(arr_img, 1, 2)
-			arr_img = arr_img[0]
+		# if len(arr_img.shape) == 1:
+		# 	arr_img = np.swapaxes(arr_img, 0, 2)
+		# 	arr_img = np.swapaxes(arr_img, 1, 2)
+		# 	arr_img = arr_img[0]
 
-		arr1d_img = arr_img.reshape(len_h*len_w)
+		arr1d_img = arr_img.reshape(len_h*len_w*len_c)
 
-		seq_train_normal[i] = np.append(arr1d_img, vec_class) # [1, 0] for normal
+		seq_rec[i] = np.append(arr1d_img, vec_class) # [1, 0] for normal
 
-	fname = dir_src.split("\\")[-2]
-	with open(DIR_DATA_PICKLE + fname + ".pickle", 'wb') as handle:
-	    pickle.dump(seq_train_normal, handle, protocol=pickle.HIGHEST_PROTOCOL)
+	return seq_rec
 
-dir_to_pickle(DIR_DATA_LABELLED_C00, DIR_DATA_PICKLE, (len_h, len_w), [1, 0])
-dir_to_pickle(DIR_DATA_LABELLED_CNN, DIR_DATA_PICKLE, (len_h, len_w), [0, 1])
+seq_rec_train_C00 = dir_to_pickle(DIR_DATA_LABELLED_C00_TRAIN, (len_h, len_w, len_c), [1, 0])
+seq_rec_train_CNN = dir_to_pickle(DIR_DATA_LABELLED_CNN_TRAIN, (len_h, len_w, len_c), [0, 1])
+seq_rec_train = np.concatenate([seq_rec_train_C00, seq_rec_train_CNN])
+
+seq_rec_test_C00 = dir_to_pickle(DIR_DATA_LABELLED_C00_TEST, (len_h, len_w, len_c), [1, 0])
+seq_rec_test_CNN = dir_to_pickle(DIR_DATA_LABELLED_CNN_TEST, (len_h, len_w, len_c), [0, 1])
+seq_rec_test = np.concatenate([seq_rec_test_C00, seq_rec_test_CNN])
+
+print(seq_rec_train_C00.shape)
+print(seq_rec_train_CNN.shape)
+print(seq_rec_train.shape)
+print(sys.getsizeof(seq_rec_train))
+print(seq_rec_test_C00.shape)
+print(seq_rec_test_CNN.shape)
+print(seq_rec_test.shape)
+print(sys.getsizeof(seq_rec_test))
+
+with open(DIR_DATA_PICKLE + "data_train.pickle", 'wb') as handle:
+    pickle.dump(seq_rec_train, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+with open(DIR_DATA_PICKLE + "data_test.pickle", 'wb') as handle:
+    pickle.dump(seq_rec_test, handle, protocol=pickle.HIGHEST_PROTOCOL)

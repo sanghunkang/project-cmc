@@ -1,17 +1,19 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import tensorflow as tf
+import _pickle as cPickle
+
 import matplotlib.pyplot as plt
 import numpy as np
 import PIL.Image as Image
+import tensorflow as tf
 
-img = Image.open("../../data_light/bmp/I0000001.BMP")
-img = Image.open("..\\..\\data_light/bmp/I0000001.BMP")
-img = img.resize((224, 224))
-arr_img = np.asarray(img, dtype=np.float32)
-print(arr_img.shape)
-print(arr_img.dtype)
+# img = Image.open("../../data_light/bmp/I0000001.BMP")
+# img = Image.open("..\\..\\data_light/bmp/I0000001.BMP")
+# img = img.resize((224, 224))
+# arr_img = np.asarray(img, dtype=np.float32)
+# print(arr_img.shape)
+# print(arr_img.dtype)
 
 DIR_DATA_WEIGHTPRETRAINED = "C:\\dev-data\\weightPretrained\\"
 # DIR_DATA_WEIGHTPRETRAINED = "../../../../dev-data/weightPretrained/"
@@ -72,9 +74,22 @@ for x in params_pre: keys.append(x)
 keys.sort()
 for key in keys: print(key, params_pre[key].get_shape())
 
+# Network Parameters
+len_input = 224*224*3 # 64*64*3
+n_classes = 2 # cat or dog
+
+# tf Graph input
+# X = tf.reshape(arr_img, shape=[-1, 224, 224, 3])
+X = tf.placeholder(tf.float32, [None, len_input])
+y = tf.placeholder(tf.float32, [None, n_classes])
+# keep_prob = tf.placeholder(tf.float32) #dropout (keep probability)
+
+data_saved = {'var_epoch_saved': tf.Variable(0)}
+
+
 # Model
-tsr_X = tf.reshape(arr_img, shape=[-1, 224, 224, 3])
-conv1_7x7_s2 = conv2d(tsr_X, params_pre['conv1_7x7_s2_W'], params_pre['conv1_7x7_s2_b'], strides=2)
+X_reshaped = tf.reshape(X, shape=[-1, 224, 224, 3])
+conv1_7x7_s2 = conv2d(X_reshaped, params_pre['conv1_7x7_s2_W'], params_pre['conv1_7x7_s2_b'], strides=2)
 conv1_7x7p_s2 = maxpool2d(conv1_7x7_s2, k=2)
 conv2_3x3 = conv2d(conv1_7x7p_s2, params_pre['conv2_3x3_W'], params_pre['conv2_3x3_b'])
 conv2p_3x3 = maxpool2d(conv2_3x3, k=2)
@@ -114,26 +129,151 @@ print(inception_5ap.get_shape())
 # Fully connected layer (and Apply Dropout)
 # Training (or tuning) is done here
 
-inception_fc = tf.reshape(inception_5ap, [-1, params_pre["loss3_classifier_W"].get_shape().as_list()[0]])
-print(inception_fc.get_shape())
-linclassifier = tf.add(tf.matmul(inception_fc, params_pre["loss3_classifier_W"]), params_pre["loss3_classifier_b"])
-linclassifier = tf.nn.relu(linclassifier)
+# inception_fc = tf.reshape(inception_5ap, [-1, params_pre["loss3_classifier_W"].get_shape().as_list()[0]])
+# print(inception_fc.get_shape())
+# linclassifier = tf.add(tf.matmul(inception_fc, params_pre["loss3_classifier_W"]), params_pre["loss3_classifier_b"])
+# linclassifier = tf.nn.relu(linclassifier)
 # fc1 = tf.nn.dropout(fc1, params['dropout'])
 
-with tf.Session() as sess:
+# Fully connected layer (and Apply Dropout)
+# Train is done here
+shape_ftmap_end = inception_5ap.get_shape()
+len_ftmap_end = int(shape_ftmap_end[1]*shape_ftmap_end[2]*shape_ftmap_end[3])
+
+params = {
+	# Variables	
+	'fc6_W': tf.Variable(tf.random_normal([len_ftmap_end, 4096]), name='fc6_W'),
+	'fc6_b': tf.Variable(tf.random_normal([4096]), name='fc6_b'),
+
+	'fc7_W': tf.Variable(tf.random_normal([4096, 4096]), name='fc7_W'),
+	'fc7_b': tf.Variable(tf.random_normal([4096]), name='fc7_b'),
+	
+	# 2 outputs (class prediction)
+	'fc8_W': tf.Variable(tf.random_normal([4096, 2]), name='fc8_W'),
+	'fc8_b': tf.Variable(tf.random_normal([2]), name='fc8_b'),
+
+	# # Dropout
+	# 'dropout': 0.9 # Dropout, probability to keep units
+}
+
+fc6 = tf.reshape(inception_5ap, [-1, params["fc6_W"].get_shape().as_list()[0]])
+
+fc6 = tf.add(tf.matmul(fc6, params["fc6_W"]), params["fc6_b"])
+fc6 = tf.contrib.layers.batch_norm(fc6)
+fc6 = tf.nn.relu(fc6)
+
+fc7 = tf.add(tf.matmul(fc6, params["fc7_W"]), params["fc7_b"])
+fc7 = tf.contrib.layers.batch_norm(fc7)
+fc7 = tf.nn.relu(fc7)
+
+fc8 = tf.add(tf.matmul(fc7, params["fc8_W"]), params["fc8_b"])
+fc8 = tf.contrib.layers.batch_norm(fc8)
+fc8 = tf.nn.relu(fc8)
+pred = fc8
+
+# BUILDING THE COMPUTATIONAL GRAPH
+# Parameters
+learning_rate = 0.0001
+train_epochs = 1200
+batch_size = 128
+display_step = 10
+
+
+with open("C:\\dev-data\\pickle\\data_train.pickle", "rb") as fo:
+	data_train = cPickle.load(fo, encoding="bytes")
+
+with open("C:\\dev-data\\pickle\\data_test.pickle", "rb") as fo:
+	data_test = cPickle.load(fo, encoding="bytes")
+np.random.shuffle(data_train)
+np.random.shuffle(data_test)
+
+def feed_dict(src_feed):
+	if src_feed == "train":
+		xs, ys = batch_x, batch_y
+	elif src_feed == "test":
+		batch_test = data_test[np.random.choice(data_test.shape[0], size=batch_size,  replace=True)]
+		xs, ys =  batch_test[:,:len_input], batch_test[:,len_input:]
+	return {X: xs, y: ys}
+
+# Define loss and optimiser
+crossEntropy = tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=y)
+cost = tf.reduce_mean(crossEntropy)
+optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
+
+# Evaluate model
+correct_pred = tf.equal(tf.argmax(pred, 1), tf.argmax(y, 1))
+accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
+
+with tf.name_scope('train'):
+	optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
+
+# Evaluate model
+with tf.name_scope('accuracy'):
+	with tf.name_scope('correct_prediction'):
+		correct_pred = tf.equal(tf.argmax(pred, 1), tf.argmax(y, 1))
+	with tf.name_scope('accuracy'):
+		accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
+tf.summary.scalar('accuracy', accuracy)
+
+# RUNNING THE COMPUTATIONAL GRAPH
+# Define saver 
+merged = tf.summary.merge_all()
+saver = tf.train.Saver()
+
+config = tf.ConfigProto()
+config.gpu_options.allow_growth = True
+
+# Run session
+with tf.Session(config=config) as sess:
 	# Initialise the variables and run
+	summaries_dir = '.\\logs'
+	train_writer = tf.summary.FileWriter(summaries_dir + '\\train', sess.graph)
+	test_writer = tf.summary.FileWriter(summaries_dir + '\\test')
 	init = tf.global_variables_initializer()
 	sess.run(init)
 	
 	# with tf.device("/cpu:0"):
 	with tf.device("/gpu:0"):
-		linclassifier_eval = linclassifier.eval()[0]
-		print(np.argmax(linclassifier_eval))
+		# For train
+		try:
+			saver.restore(sess, '.\\modelckpt\\inception.ckpt')
+			print('Model restored')
+			epoch_saved = data_saved['var_epoch_saved'].eval()
+		except tf.errors.NotFoundError:
+			print('No saved model found')
+			epoch_saved = 0
+		except tf.errors.InvalidArgumentError:
+			print('Model structure has change. Rebuild model')
+			epoch_saved = 0
 
-		conv23_eval = conv2_3x3.eval()[0]
-		conv23_eval = np.swapaxes(conv23_eval, 0, 2) # (16(x),16(y),64)
-		conv23_eval = np.swapaxes(conv23_eval, 1, 2)
+		# Training cycle
+		print(epoch_saved)
+		for epoch in range(epoch_saved, epoch_saved + train_epochs):
+			batch = data_train[np.random.choice(data_train.shape[0], size=batch_size,  replace=True)]
+			batch_x = batch[:, :len_input]
+			batch_y = batch[:, len_input:]
+			# Run optimization op (backprop)
+			sess.run(optimizer, feed_dict={X: batch_x, y: batch_y})
+			if epoch % display_step == 0:
+				# Calculate batch loss and accuracy
+				loss, acc = sess.run([cost, accuracy], feed_dict={X: batch_x, y: batch_y})
+		
+				print('Epoch ' + str(epoch) + ', Minibatch Loss= ' + '{:.6f}'.format(loss) + ', Train Accuracy= ' + '{:.5f}'.format(acc))# + ', Validation Accuracy= ' + '{:.5f}'.format(acc_test))
 
-		# for rec in conv23_eval[20:24]:
-		# 	plt.imshow(rec, cmap="gray")
-		# 	plt.show()
+
+			# if epoch % 10 == 0:  # Record summaries and test-set accuracy
+			summary, acc = sess.run([merged, accuracy], feed_dict=feed_dict("test"))
+			test_writer.add_summary(summary, epoch)
+			print('Accuracy at step %s: %s' % (epoch, acc))
+			# else:  # Record train set summaries, and train
+			summary, _ = sess.run([merged, optimizer], feed_dict=feed_dict("train"))
+			train_writer.add_summary(summary, epoch)
+	
+		print('Optimisation Finished!')
+
+		# Save the variables
+		epoch_new = epoch_saved + train_epochs
+		sess.run(data_saved['var_epoch_saved'].assign(epoch_saved + train_epochs))
+		print(data_saved['var_epoch_saved'].eval())
+		save_path = saver.save(sess, '.\\modelckpt\\inception.ckpt')
+		print('Model saved in file: %s' % save_path)

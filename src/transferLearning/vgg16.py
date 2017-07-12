@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import _pickle as cPickle
+
 import tensorflow as tf
 import matplotlib.pyplot as plt
 import numpy as np
@@ -26,24 +28,6 @@ for x in params_pre: keys.append(x)
 
 keys.sort()
 
-
-# GoogLeNet
-# print("++++++++++ GoogLeNet ++++++++++")
-# aa = np.load("pretrained\\googlenet.npy", encoding = 'latin1').item() # return dict
-# for a in aa: print(a, aa[a]["biases"].shape, aa[a]["weights"].shape)
-
-import PIL.Image as Image
-
-img = Image.open("../../data_light/bmp/I0000001.BMP")
-img = Image.open("..\\..\\data_light/bmp/I0000001.BMP")
-img = img.resize((512,512))
-arr_img = np.asarray(img, dtype=np.float32)
-print(arr_img.shape)
-print(arr_img.dtype)
-
-for key in keys: print(key, params_pre[key])
-
-
 def conv2d(x, W, b, strides=1):
 	# Conv2D wrapper, with bias and relu activation
 	x = tf.nn.conv2d(x, W, strides=[1, strides, strides, 1], padding='SAME')
@@ -53,15 +37,13 @@ def conv2d(x, W, b, strides=1):
 def maxpool2d(x, k=2):
 	# MaxPool2D wrapper
 	return tf.nn.max_pool(x, ksize=[1, k, k, 1], strides=[1, k, k, 1], padding='SAME')
-
-# X = tf.convert_to_tensor(arr_img, dtype=tf.float32)
 # Network Parameters
-len_input = 4096*3 # 64*64*3
+len_input = 224*224*3 # 64*64*3
 n_classes = 2 # cat or dog
 
 # tf Graph input
-X = tf.reshape(arr_img, shape=[-1, 512, 512, 3])
-# x = tf.placeholder(tf.float32, [None, len_input])
+# X = tf.reshape(arr_img, shape=[-1, 224, 224, 3])
+X = tf.placeholder(tf.float32, [None, len_input])
 y = tf.placeholder(tf.float32, [None, n_classes])
 keep_prob = tf.placeholder(tf.float32) #dropout (keep probability)
 
@@ -70,7 +52,7 @@ data_saved = {'var_epoch_saved': tf.Variable(0)}
 
 # Convolution and max pooling(down-sampling) Layers
 # Parameters are from pretrained data
-X_reshaped = tf.reshape(X, shape=[-1, 512, 512, 3])
+X_reshaped = tf.reshape(X, shape=[-1, 224, 224, 3])
 
 conv11 = conv2d(X_reshaped, params_pre['conv1_1_W'], params_pre['conv1_1_b'])
 conv12 = conv2d(conv11, params_pre['conv1_2_W'], params_pre['conv1_2_b'])
@@ -106,7 +88,7 @@ conv5p = maxpool2d(conv52, k=2)
 # fc8 = tf.nn.relu(fc8)
 
 # Fully connected layer (and Apply Dropout)
-# Training is done here
+# Train is done here
 shape_ftmap_end = conv5p.get_shape()
 len_ftmap_end = int(shape_ftmap_end[1]*shape_ftmap_end[2]*shape_ftmap_end[3])
 
@@ -138,6 +120,33 @@ fc8 = tf.add(tf.matmul(fc7, params["fc8_W"]), params["fc8_b"])
 fc8 = tf.nn.relu(fc8)
 pred = fc8
 
+# BUILDING THE COMPUTATIONAL GRAPH
+# Parameters
+learning_rate = 0.001
+train_epochs = 500
+batch_size = 32
+display_step = 10
+
+
+with open("C:\\dev-data\\pickle\\data_train.pickle", "rb") as fo:
+	data_train = cPickle.load(fo, encoding="bytes")
+
+with open("C:\\dev-data\\pickle\\data_test.pickle", "rb") as fo:
+	data_test = cPickle.load(fo, encoding="bytes")
+np.random.shuffle(data_train)
+np.random.shuffle(data_test)
+
+def feed_dict(train):
+	"""Make a TensorFlow feed_dict: maps data onto Tensor placeholders."""
+	if train:
+		xs, ys = batch_x, batch_y
+		k = params['dropout']
+	else:
+		batch_test = data_test[np.random.choice(data_test.shape[0], size=batch_size,  replace=True)]
+		xs, ys =  batch_test[:,:len_input], batch_test[:,len_input:]
+		k = 1.0
+	return {X: xs, y: ys, keep_prob: k}
+
 # Define loss and optimiser
 crossEntropy = tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=y)
 cost = tf.reduce_mean(crossEntropy)
@@ -163,17 +172,23 @@ tf.summary.scalar('accuracy', accuracy)
 merged = tf.summary.merge_all()
 saver = tf.train.Saver()
 
+config = tf.ConfigProto()
+config.gpu_options.allow_growth = True
+
 # Run session
-with tf.Session() as sess:
+with tf.Session(config=config) as sess:
 	# Initialise the variables and run
+	summaries_dir = '.\\logs'
+	train_writer = tf.summary.FileWriter(summaries_dir + '\\train', sess.graph)
+	test_writer = tf.summary.FileWriter(summaries_dir + '\\test')
 	init = tf.global_variables_initializer()
 	sess.run(init)
 	
 	# with tf.device("/cpu:0"):
 	with tf.device("/gpu:0"):
-		# For training
+		# For train
 		try:
-			saver.restore(sess, '.\\model\\model.ckpt')
+			saver.restore(sess, '.\\modelckpt\\model.ckpt')
 			print('Model restored')
 			epoch_saved = data_saved['var_epoch_saved'].eval()
 		except tf.errors.NotFoundError:
@@ -185,22 +200,22 @@ with tf.Session() as sess:
 
 		# Training cycle
 		print(epoch_saved)
-		for epoch in range(epoch_saved, epoch_saved + training_epochs):
-			batch = data_training[np.random.choice(data_training.shape[0], size=batch_size,  replace=True)]
+		for epoch in range(epoch_saved, epoch_saved + train_epochs):
+			batch = data_train[np.random.choice(data_train.shape[0], size=batch_size,  replace=True)]
 			batch_x = batch[:, :len_input]
 			batch_y = batch[:, len_input:]
 			# Run optimization op (backprop)
-			sess.run(optimizer, feed_dict={x: batch_x, y: batch_y, keep_prob: params['dropout']})
+			sess.run(optimizer, feed_dict={X: batch_x, y: batch_y, keep_prob: params['dropout']})
 			if epoch % display_step == 0:
 				# Calculate batch loss and accuracy
-				loss, acc = sess.run([cost, accuracy], feed_dict={x: batch_x, y: batch_y, keep_prob: 1.})
+				loss, acc = sess.run([cost, accuracy], feed_dict={X: batch_x, y: batch_y, keep_prob: 1.})
 		
 				# batch_test = data_test[np.random.choice(data_test.shape[0], size=batch_size,  replace=True)]
 				# Validation
 				# acc_test = sess.run(accuracy, feed_dict={x: batch_test[:,:4096*3], y: batch_test[:,4096*3:], keep_prob: 1.})
-				print('Epoch ' + str(epoch) + ', Minibatch Loss= ' + '{:.6f}'.format(loss) + ', Training Accuracy= ' + '{:.5f}'.format(acc))# + ', Validation Accuracy= ' + '{:.5f}'.format(acc_test))
+				print('Epoch ' + str(epoch) + ', Minibatch Loss= ' + '{:.6f}'.format(loss) + ', Train Accuracy= ' + '{:.5f}'.format(acc))# + ', Validation Accuracy= ' + '{:.5f}'.format(acc_test))
 
-				# batch = data_training[np.random.choice(data_training.shape[0], size=batch_size,  replace=True)]
+				# batch = data_train[np.random.choice(data_train.shape[0], size=batch_size,  replace=True)]
 
 			# if epoch % 10 == 0:  # Record summaries and test-set accuracy
 			summary, acc = sess.run([merged, accuracy], feed_dict=feed_dict(False))
@@ -213,10 +228,10 @@ with tf.Session() as sess:
 		print('Optimisation Finished!')
 
 		# Save the variables
-		epoch_new = epoch_saved + training_epochs
-		sess.run(data_saved['var_epoch_saved'].assign(epoch_saved + training_epochs))
+		epoch_new = epoch_saved + train_epochs
+		sess.run(data_saved['var_epoch_saved'].assign(epoch_saved + train_epochs))
 		print(data_saved['var_epoch_saved'].eval())
-		save_path = saver.save(sess, '.\\model\\model.ckpt')
+		save_path = saver.save(sess, '.\\modelckpt\\model.ckpt')
 		print('Model saved in file: %s' % save_path)
 
 
