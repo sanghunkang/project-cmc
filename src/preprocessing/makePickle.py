@@ -33,8 +33,8 @@ def dir_to_pickle(dir_src, resolution, vec_class):
 	seq_rec = np.zeros(shape=(len(seq_fpath), len_h*len_w*len_c + n_class), dtype=np.float32)
 	for i, fpath in enumerate(seq_fpath):
 		print(fpath)
-		raw_img = Image.open(dir_src + fpath)
-		img = raw_img.convert('RGB')
+		img = Image.open(dir_src + fpath).convert('RGB')
+		# img = raw_img.convert('RGB')
 		size_img = img.size
 		
 		min_side = min(size_img)
@@ -44,13 +44,7 @@ def dir_to_pickle(dir_src, resolution, vec_class):
 		img_resize = img_crop.resize((len_h, len_w))
 
 		arr_img = np.asarray(img_resize)
-		# if len(arr_img.shape) == 1:
-		# 	arr_img = np.swapaxes(arr_img, 0, 2)
-		# 	arr_img = np.swapaxes(arr_img, 1, 2)
-		# 	arr_img = arr_img[0]
-
 		arr1d_img = arr_img.reshape(len_h*len_w*len_c)
-
 		seq_rec[i] = np.append(arr1d_img, vec_class) # [1, 0] for normal
 
 	return seq_rec
