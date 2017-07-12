@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+# Import built-in packages
 import _pickle as cPickle
 
-import matplotlib.pyplot as plt
+# Import external packages
 import numpy as np
-import PIL.Image as Image
 import tensorflow as tf
 
+DIR_DATA_PICKLE = "C:\\dev-data\\pickle\\"
 DIR_DATA_WEIGHTPRETRAINED = "C:\\dev-data\\weightPretrained\\"
 # DIR_DATA_WEIGHTPRETRAINED = "../../../../dev-data/weightPretrained/"
 
@@ -48,16 +49,19 @@ def conv2d(x, W, b, strides=1):
 def maxpool2d(x, k=2):
 	# MaxPool2D wrapper
 	return tf.nn.max_pool(x, ksize=[1, k, k, 1], strides=[1, k, k, 1], padding='SAME')
+def conv2ser(x):
+	shape_ftmap_end = x.get_shape()
+	len_ftmap_end = int(shape_ftmap_end[1]*shape_ftmap_end[2]*shape_ftmap_end[3])
+	return tf.reshape(x, [-1, params["fc6_W"].get_shape().as_list()[0]])
 
 def fc1d(x, W, b, bn):
 	# FC layer wrapper, with bias, relu activation plus batch-normalisation if demanded
 	fc = tf.add(tf.matmul(x, W), b)
 	if bn == True: fc = tf.contrib.layers.batch_norm(fc)
-	fc = tf.nn.relu(fc)
-	return fc
-
-
-def inception_module(tsr_X, params_module):
+	return tf.nn.relu(fc)
+	
+def inception_module(tsr_X, name_module, params_pre):
+	params_module = slice_params_module(name_module, params_pre)
 	# 1x1 convolution
 	inception_1x1 = conv2d(tsr_X, params_module["1x1_W"], params_module["1x1_b"])
 
@@ -89,54 +93,10 @@ params_pre = reformat_params(dict_lyr)
 len_input = 224*224*3
 n_classes = 2 # Normal or Abnormal
 
-# tf Graph input
-X = tf.placeholder(tf.float32, [None, len_input])
-y = tf.placeholder(tf.float32, [None, n_classes])
-
-# Model
-X_reshaped = tf.reshape(X, shape=[-1, 224, 224, 3])
-conv1_7x7_s2 = conv2d(X_reshaped, params_pre['conv1_7x7_s2_W'], params_pre['conv1_7x7_s2_b'], strides=2)
-conv1_7x7p_s2 = maxpool2d(conv1_7x7_s2, k=2)
-conv2_3x3 = conv2d(conv1_7x7p_s2, params_pre['conv2_3x3_W'], params_pre['conv2_3x3_b'])
-conv2p_3x3 = maxpool2d(conv2_3x3, k=2)
-
-# Slice into subsets
-params_inception_3a = slice_params_module("inception_3a_", params_pre)
-params_inception_3b = slice_params_module("inception_3b_", params_pre)
-params_inception_4a = slice_params_module("inception_4a_", params_pre)
-params_inception_4b = slice_params_module("inception_4b_", params_pre)
-params_inception_4c = slice_params_module("inception_4c_", params_pre)
-params_inception_4d = slice_params_module("inception_4d_", params_pre)
-params_inception_4e = slice_params_module("inception_4e_", params_pre)
-params_inception_5a = slice_params_module("inception_5a_", params_pre)
-params_inception_5b = slice_params_module("inception_5b_", params_pre)
-
-# Convolution and max pooling(down-sampling) Layers
-# Convolution parameters are from pretrained data
-inception_3a = inception_module(conv2p_3x3, params_inception_3a)
-inception_3b = inception_module(inception_3a, params_inception_3b)
-inception_3bp = maxpool2d(inception_3b, k=2)
-
-inception_4a = inception_module(inception_3bp, params_inception_4a)
-inception_4b = inception_module(inception_4a, params_inception_4b)
-inception_4c = inception_module(inception_4b, params_inception_4c)
-inception_4d = inception_module(inception_4c, params_inception_4d)
-inception_4e = inception_module(inception_4d, params_inception_4e)
-inception_4ep = maxpool2d(inception_4e, k=2)
-
-inception_5a = inception_module(inception_4ep, params_inception_5a)
-inception_5b = inception_module(inception_5a, params_inception_5b)
-inception_5ap = tf.nn.avg_pool(inception_5b, ksize=[1, 1, 1, 1], strides=[1, 7, 7, 1], padding='SAME')
-print(inception_5b.get_shape())
-print(inception_5ap.get_shape())
-
-# Fully connected layer, training is done only for here
-shape_ftmap_end = inception_5ap.get_shape()
-len_ftmap_end = int(shape_ftmap_end[1]*shape_ftmap_end[2]*shape_ftmap_end[3])
-
 data_saved = {'var_epoch_saved': tf.Variable(0)}
 params = {
-	'fc6_W': tf.Variable(tf.random_normal([len_ftmap_end, 4096]), name='fc6_W'),
+	# len_ftmap_end = int(shape_ftmap_end[1]*shape_ftmap_end[2]*shape_ftmap_end[3])
+	'fc6_W': tf.Variable(tf.random_normal([1024, 4096]), name='fc6_W'),
 	'fc6_b': tf.Variable(tf.random_normal([4096]), name='fc6_b'),
 
 	'fc7_W': tf.Variable(tf.random_normal([4096, 4096]), name='fc7_W'),
@@ -146,8 +106,43 @@ params = {
 	'fc8_b': tf.Variable(tf.random_normal([2]), name='fc8_b'), # 2 outputs (class prediction)
 }
 
-inception_5ap_1d = tf.reshape(inception_5ap, [-1, params["fc6_W"].get_shape().as_list()[0]])
+# tf Graph input
+X = tf.placeholder(tf.float32, [None, len_input])
+y = tf.placeholder(tf.float32, [None, n_classes])
 
+# Model
+X_reshaped = tf.reshape(X, shape=[-1, 224, 224, 3])
+
+
+# Convolution and max pooling(down-sampling) Layers
+# Convolution parameters are from pretrained data
+conv1_7x7_s2 = conv2d(X_reshaped, params_pre['conv1_7x7_s2_W'], params_pre['conv1_7x7_s2_b'], strides=2)
+conv1_7x7p_s2 = maxpool2d(conv1_7x7_s2, k=2)
+
+conv2_3x3 = conv2d(conv1_7x7p_s2, params_pre['conv2_3x3_W'], params_pre['conv2_3x3_b'])
+conv2p_3x3 = maxpool2d(conv2_3x3, k=2)
+
+# Inception modules
+inception_3a = inception_module(conv2p_3x3, "inception_3a_", params_pre)
+inception_3b = inception_module(inception_3a, "inception_3b_", params_pre)
+inception_3bp = maxpool2d(inception_3b, k=2)
+
+inception_4a = inception_module(inception_3bp, "inception_4a_", params_pre)
+inception_4b = inception_module(inception_4a, "inception_4b_", params_pre)
+inception_4c = inception_module(inception_4b, "inception_4c_", params_pre)
+inception_4d = inception_module(inception_4c, "inception_4d_", params_pre)
+inception_4e = inception_module(inception_4d, "inception_4e_", params_pre)
+inception_4ep = maxpool2d(inception_4e, k=2)
+
+inception_5a = inception_module(inception_4ep, "inception_5a_", params_pre)
+inception_5b = inception_module(inception_5a, "inception_5b_", params_pre)
+inception_5ap = tf.nn.avg_pool(inception_5b, ksize=[1, 1, 1, 1], strides=[1, 7, 7, 1], padding='SAME')
+
+print(inception_5b.get_shape())
+print(inception_5ap.get_shape())
+
+# Fully connected layer, training is done only for here
+inception_5ap_1d = conv2ser(inception_5ap)
 fc6 = fc1d(inception_5ap_1d, params["fc6_W"], params["fc6_b"], bn=True)
 fc7 = fc1d(fc6, params["fc7_W"], params["fc7_b"], bn=True)
 pred = fc1d(fc7, params["fc8_W"], params["fc8_b"], bn=True)
@@ -159,8 +154,8 @@ n_itr = 100
 batch_size = 128
 display_step = 10
 
-data_train = read_data("C:\\dev-data\\pickle\\data_train.pickle")
-data_test = read_data("C:\\dev-data\\pickle\\data_test.pickle")
+data_train = read_data(DIR_DATA_PICKLE + "data_train.pickle")
+data_test = read_data(DIR_DATA_PICKLE + "data_test.pickle")
 
 
 # Define loss and optimiser
@@ -172,21 +167,16 @@ optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 correct_pred = tf.equal(tf.argmax(pred, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
-with tf.name_scope('train'):
-	optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
-
-# Evaluate model
-with tf.name_scope('accuracy'):
-	with tf.name_scope('correct_prediction'):
-		correct_pred = tf.equal(tf.argmax(pred, 1), tf.argmax(y, 1))
-		accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
+# Integrate tf summaries
+tf.summary.scalar('cost', cost)
 tf.summary.scalar('accuracy', accuracy)
+merged = tf.summary.merge_all()
 
 # RUNNING THE COMPUTATIONAL GRAPH
 # Define saver 
-merged = tf.summary.merge_all()
 saver = tf.train.Saver()
 
+# Configure memory growth
 config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
 
@@ -210,13 +200,13 @@ with tf.Session(config=config) as sess:
 			epoch_saved = data_saved['var_epoch_saved'].eval()
 		except tf.errors.NotFoundError:
 			print('No saved model found')
-			epoch_saved = 0
+			epoch_saved = 1
 		except tf.errors.InvalidArgumentError:
 			print('Model structure has change. Rebuild model')
-			epoch_saved = 0
+			epoch_saved = 1
 
 		# Training cycle
-		for epoch in range(epoch_saved, epoch_saved + n_itr):
+		for epoch in range(epoch_saved, epoch_saved + n_itr + 1):
 			# Run optimization op (backprop) ... twice with the same batch
 			summary, acc_train, loss_train, _ = sess.run([merged, accuracy, cost, optimizer], feed_dict=feed_dict(data_train, batch_size))
 			summary, acc_train, loss_train, _ = sess.run([merged, accuracy, cost, optimizer], feed_dict=feed_dict(data_train, batch_size))
@@ -224,15 +214,15 @@ with tf.Session(config=config) as sess:
 			
 			summary, acc_test = sess.run([merged, accuracy], feed_dict=feed_dict(data_test, batch_size))
 			test_writer.add_summary(summary, epoch)
-			print('Accuracy at step %s: %s' % (epoch, acc_test))
+			print("Accuracy at step {0}: {1}".format(epoch, acc_test))
 
 			if epoch % display_step == 0:
-				print('Epoch ' + str(epoch) + ', Minibatch Loss= ' + '{:.6f}'.format(loss_train) + ', Train Accuracy= ' + '{:.5f}'.format(acc_train))
+				print("Epoch {0}, Minibatch Loss= {1:.6f}, Train Accuracy= {2:.5f}".format(epoch, loss_train, acc_train))
 	
-		print('Optimisation Finished!')
+		print("Optimisation Finished!")
 
 		# Save the variables
 		epoch_new = epoch_saved + n_itr
-		sess.run(data_saved['var_epoch_saved'].assign(epoch_saved + n_itr))
-		save_path = saver.save(sess, '.\\modelckpt\\inception.ckpt')
-		print('Model saved in file: %s' % save_path)
+		sess.run(data_saved["var_epoch_saved"].assign(epoch_saved + n_itr))
+		fpath_ckpt = saver.save(sess, ".\\modelckpt\\inception.ckpt")
+		print("Model saved in file: {0}".format(fpath_ckpt))
