@@ -209,7 +209,6 @@ with tf.Session(config=config) as sess:
 		for epoch in range(epoch_saved, epoch_saved + n_itr + 1):
 			# Run optimization op (backprop) ... twice with the same batch
 			summary, acc_train, loss_train, _ = sess.run([merged, accuracy, cost, optimizer], feed_dict=feed_dict(data_train, batch_size))
-			summary, acc_train, loss_train, _ = sess.run([merged, accuracy, cost, optimizer], feed_dict=feed_dict(data_train, batch_size))
 			train_writer.add_summary(summary, epoch)
 			
 			summary, acc_test = sess.run([merged, accuracy], feed_dict=feed_dict(data_test, batch_size))
