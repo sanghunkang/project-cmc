@@ -123,8 +123,8 @@ pred = fc8
 # BUILDING THE COMPUTATIONAL GRAPH
 # Parameters
 learning_rate = 0.001
-train_epochs = 500
-batch_size = 32
+train_epochs = 1000
+batch_size = 16
 display_step = 10
 
 
@@ -156,22 +156,14 @@ optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 correct_pred = tf.equal(tf.argmax(pred, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
-with tf.name_scope('train'):
-	optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
-
-# Evaluate model
-with tf.name_scope('accuracy'):
-	with tf.name_scope('correct_prediction'):
-		correct_pred = tf.equal(tf.argmax(pred, 1), tf.argmax(y, 1))
-	with tf.name_scope('accuracy'):
-		accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
+# Integrate tf summaries
+tf.summary.scalar('cost', cost)
 tf.summary.scalar('accuracy', accuracy)
+merged = tf.summary.merge_all()
 
 # RUNNING THE COMPUTATIONAL GRAPH
 # Define saver 
-merged = tf.summary.merge_all()
 saver = tf.train.Saver()
-
 config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
 
@@ -188,7 +180,7 @@ with tf.Session(config=config) as sess:
 	with tf.device("/gpu:0"):
 		# For train
 		try:
-			saver.restore(sess, '.\\modelckpt\\model.ckpt')
+			saver.restore(sess, '.\\modelckpt\\vgg16.ckpt')
 			print('Model restored')
 			epoch_saved = data_saved['var_epoch_saved'].eval()
 		except tf.errors.NotFoundError:
@@ -231,7 +223,7 @@ with tf.Session(config=config) as sess:
 		epoch_new = epoch_saved + train_epochs
 		sess.run(data_saved['var_epoch_saved'].assign(epoch_saved + train_epochs))
 		print(data_saved['var_epoch_saved'].eval())
-		save_path = saver.save(sess, '.\\modelckpt\\model.ckpt')
+		save_path = saver.save(sess, '.\\modelckpt\\vgg16.ckpt')
 		print('Model saved in file: %s' % save_path)
 
 

@@ -150,7 +150,7 @@ pred = fc1d(fc7, params["fc8_W"], params["fc8_b"], bn=True)
 # BUILDING THE COMPUTATIONAL GRAPH
 # Parameters
 learning_rate = 0.0001
-n_itr = 100
+n_itr = 1000
 batch_size = 128
 display_step = 10
 
