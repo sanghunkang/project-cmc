@@ -19,7 +19,6 @@ DIR_DATA_LUNG = "C:\\dev-data\\LUNG\\01\\"
 fpath = "..\\..\\data_light\\bmp\\I0000001.BMP"
 
 # Define some functions
-
 def make_seq_comp_canddt(img_bylabel, num_canddt):
 	# Finds all unique elements and their positions
 	unique, pos = np.unique(img_bylabel, return_inverse=True) 

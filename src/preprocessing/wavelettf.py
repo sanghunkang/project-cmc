@@ -13,7 +13,6 @@ import pywt
 # img = Image.open("C:\\dev\\project-cucm\\data_light\\bmp\\I0000001.BMP")
 # img = Image.open("C:\\dev\\project-cucm\\data_light\\bmp\\10028041.bmp")
 # img = Image.open("C:\\dev\\project-cucm\\data_light\\bmp\\24362776.bmp")
-img = Image.open("C:\\dev\\project-cucm\\data_light\\bmp\\cc.PNG")
 # img = Image.open("C:\\dev\\project-cucm\\data_light\\bmp\\I0000001_crop.BMP")
 # img = Image.open("C:\\dev\\project-cucm\\data_light\\bmp\\lena512.BMP")
 # img = Image.open("C:\\dev\\project-cucm\\data_light\\bmp\\Lichtenstein.png")
