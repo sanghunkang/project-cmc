@@ -8,22 +8,19 @@ import _pickle as cPickle
 import numpy as np
 import tensorflow as tf
 
-from model_inceptionv1 import model_inceptionv1
+from arxtInceptionv1 import arxt_inceptionv1
 
-DIR_DATA_PICKLE = "C:\\dev-data\\pickle\\"
-DIR_DATA_WEIGHTPRETRAINED = "C:\\dev-data\\weightPretrained\\"
-
-FPAHT_DATA_TRAIN =  "C:\\dev-data\\pickle\\data_train.pickle"
-FPAHT_DATA_TEST =  "C:\\dev-data\\pickle\\data_test.pickle"
-# DIR_DATA_WEIGHTPRETRAINED = "../../../../dev-data/weightPretrained/"
+FPATH_DATA_WEIGHTPRETRAINED = "../../../../dev-data/weightPretrained/googlenet.npy"
+FPATH_DATA_TRAIN =  "../../../../dev-data/pickle/data_train.pickle"
+FPATH_DATA_TEST =  "../../../../dev-data/pickle/data_test.pickle"
 
 # Define some functions... for whatever purposes
 def read_data(fpath):
 	"""
 	args:
-		fpath: str or pathlike object
+		fpath 		: str or pathlike object
 	return:
-		data: nparray
+		data 		: np.array
 	"""
 	with open(fpath, "rb") as fo:
 		data_train = cPickle.load(fo, encoding="bytes")
@@ -31,22 +28,36 @@ def read_data(fpath):
 	return data_train
 
 def reformat_params(dict_lyr):
+	"""
+	Convert {layer:{Weight, bias}} into {layer_Weight, layer_bias} for easier referencing
+
+	args:
+		dict_lyr 	: dict, {layer_name:{variable1_name: tf.Variable, variable2_name: tf.Variable}}
+	return:
+		params_pre 	: dict, {variable_name: tf.Variable}
+	"""
 	params_pre = {}
 	for key in dict_lyr:
 		params_pre[key + "_W"] = tf.Variable(dict_lyr[key]["weights"], name=key + "_W")
 		params_pre[key + "_b"] = tf.Variable(dict_lyr[key]["biases"], name=key + "_b")
 	return params_pre
 
-def feed_dict(data, batch_size):
+def feed_dict(data, batch_size, len_input):
+	"""
+	args:
+		data 		: np.array, 2-dimensional
+		batch_size 	: int
+		len_input 	: int
+	return:
+					: dict, {X: np.array of shape(len_input, batch_size), y: np.array of shape(num_class, batch_size)}
+	"""
 	batch = data[np.random.choice(data.shape[0], size=batch_size,  replace=True)]
 	return {X: batch[:,:len_input], y: batch[:,len_input:]}
 
 # Inception-v1
 print("++++++++++ Inception-v1 ++++++++++")
-dict_lyr = np.load(DIR_DATA_WEIGHTPRETRAINED + "googlenet.npy", encoding = 'latin1').item() # return dict
+dict_lyr = np.load(FPATH_DATA_WEIGHTPRETRAINED, encoding = 'latin1').item() # return dict
 params_pre = reformat_params(dict_lyr)
-
-
 
 data_saved = {'var_epoch_saved': tf.Variable(0)}
 params = {
@@ -63,17 +74,17 @@ params = {
 
 # tf Graph input
 len_input = 224*224*3
-n_classes = 2 # Normal or Abnormal
+num_class = 2 # Normal or Abnormal
 
 X = tf.placeholder(tf.float32, [None, len_input])
-y = tf.placeholder(tf.float32, [None, n_classes])
+y = tf.placeholder(tf.float32, [None, num_class])
 
-pred = model_inceptionv1(X, params_pre, params)
+pred = arxt_inceptionv1(X, params_pre, params)
 
 # BUILDING THE COMPUTATIONAL GRAPH
 # Hyperparameters
-learning_rate = 0.0001
-n_itr = 1000
+learning_rate = 0.00005
+num_itr = 500
 batch_size = 128
 display_step = 10
 
@@ -99,16 +110,14 @@ saver = tf.train.Saver()
 config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
 
-
-
 # Run session
 with tf.Session(config=config) as sess:
-	data_train = read_data(DIR_DATA_PICKLE + "data_train.pickle")
-	data_test = read_data(DIR_DATA_PICKLE + "data_test.pickle")
+	data_train = read_data(FPATH_DATA_TRAIN)
+	data_test = read_data(FPATH_DATA_TEST)
 
-	summaries_dir = '.\\logs'
-	train_writer = tf.summary.FileWriter(summaries_dir + '\\train', sess.graph)
-	test_writer = tf.summary.FileWriter(summaries_dir + '\\test')
+	summaries_dir = './logs'
+	train_writer = tf.summary.FileWriter(summaries_dir + '/train', sess.graph)
+	test_writer = tf.summary.FileWriter(summaries_dir + '/test')
 	
 	# Initialise the variables and run
 	init = tf.global_variables_initializer()
@@ -118,7 +127,7 @@ with tf.Session(config=config) as sess:
 	with tf.device("/gpu:0"):
 		# For train
 		try:
-			saver.restore(sess, '.\\modelckpt\\inception.ckpt')
+			saver.restore(sess, './modelckpt/inception.ckpt')
 			print('Model restored')
 			epoch_saved = data_saved['var_epoch_saved'].eval()
 		except tf.errors.NotFoundError:
@@ -129,12 +138,12 @@ with tf.Session(config=config) as sess:
 			epoch_saved = 1
 
 		# Training cycle
-		for epoch in range(epoch_saved, epoch_saved + n_itr + 1):
+		for epoch in range(epoch_saved, epoch_saved + num_itr + 1):
 			# Run optimization op (backprop)
-			summary, acc_train, loss_train, _ = sess.run([merged, accuracy, cost, optimizer], feed_dict=feed_dict(data_train, batch_size))
+			summary, acc_train, loss_train, _ = sess.run([merged, accuracy, cost, optimizer], feed_dict=feed_dict(data_train, batch_size, len_input))
 			train_writer.add_summary(summary, epoch)
 			
-			summary, acc_test = sess.run([merged, accuracy], feed_dict=feed_dict(data_test, batch_size))
+			summary, acc_test = sess.run([merged, accuracy], feed_dict=feed_dict(data_test, batch_size, len_input))
 			test_writer.add_summary(summary, epoch)
 			print("Accuracy at step {0}: {1}".format(epoch, acc_test))
 
@@ -144,7 +153,7 @@ with tf.Session(config=config) as sess:
 		print("Optimisation Finished!")
 
 		# Save the variables
-		epoch_new = epoch_saved + n_itr
-		sess.run(data_saved["var_epoch_saved"].assign(epoch_saved + n_itr))
-		fpath_ckpt = saver.save(sess, ".\\modelckpt\\inception.ckpt")
+		epoch_new = epoch_saved + num_itr
+		sess.run(data_saved["var_epoch_saved"].assign(epoch_saved + num_itr))
+		fpath_ckpt = saver.save(sess, "./modelckpt/inception.ckpt")
 		print("Model saved in file: {0}".format(fpath_ckpt))

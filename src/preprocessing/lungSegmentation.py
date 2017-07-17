@@ -16,7 +16,7 @@ import numpy as np
 
 DIR_DATA_LIGHT = ""
 DIR_DATA_LUNG = "C:\\dev-data\\LUNG\\01\\"
-fpath = "..\\..\\data_light\\bmp\\I0000001.BMP"
+FPATH_SMPL = "..\\..\\data_light\\bmp\\I0000001.BMP"
 
 # Define some functions
 def make_seq_comp_canddt(img_bylabel, num_canddt):
@@ -73,7 +73,7 @@ def make_section(seq_pair_distComp):
 # Step 1: Calculate threshhold and convert into binary image
 
 # Read data
-img = cv2.imread(fpath ,0)
+img = cv2.imread(FPATH_SMPL ,0)
 
 # Otsu's thresholding after Gaussian filtering
 img_blur = cv2.GaussianBlur(img, (5,5), 0)

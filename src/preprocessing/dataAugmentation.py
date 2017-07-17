@@ -42,10 +42,10 @@ image = io.imread(fpath)
 # io.imsave(fpath, image)
 
 # image = data.checkerboard()
-swirled = swirl(image, center=(1000,1000), rotation=0, strength=1, radius=1500)
-swirled = swirl(image, center=(2000,2000), rotation=0, strength=1, radius=1500)
+swirled = swirl(image, center=(1000,1000), rotation=0, strength=-1.3, radius=1500)
+swirled = swirl(image, center=(2000,1000), rotation=0, strength=1.5, radius=1500)
 
-fig, (ax0, ax1) = plt.subplots(nrows=1, ncols=2, figsize=(8, 3),
+fig, (ax0, ax1) = plt.subplots(nrows=1, ncols=2, figsize=(12, 8),
                                sharex=True, sharey=True,
                                subplot_kw={'adjustable':'box-forced'})
 
@@ -55,3 +55,5 @@ ax1.imshow(swirled, cmap=plt.cm.gray, interpolation='none')
 ax1.axis('off')
 
 plt.show()
+
+5823

@@ -10,12 +10,7 @@ import numpy as np
 import pywt
 
 # Open image
-# img = Image.open("C:\\dev\\project-cucm\\data_light\\bmp\\I0000001.BMP")
-# img = Image.open("C:\\dev\\project-cucm\\data_light\\bmp\\10028041.bmp")
-# img = Image.open("C:\\dev\\project-cucm\\data_light\\bmp\\24362776.bmp")
-# img = Image.open("C:\\dev\\project-cucm\\data_light\\bmp\\I0000001_crop.BMP")
-# img = Image.open("C:\\dev\\project-cucm\\data_light\\bmp\\lena512.BMP")
-# img = Image.open("C:\\dev\\project-cucm\\data_light\\bmp\\Lichtenstein.png")
+FPATH_SMPL = "..\\..\\data_light\\bmp\\I0000001.BMP"
 
 arr_img = np.asarray(img)
 arr_img = np.swapaxes(arr_img, 0, 2)
