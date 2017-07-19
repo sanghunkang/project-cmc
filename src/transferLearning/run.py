@@ -83,7 +83,7 @@ pred = arxt_inceptionv1(X, params_pre, params)
 
 # BUILDING THE COMPUTATIONAL GRAPH
 # Hyperparameters
-learning_rate = 0.00005
+learning_rate = 0.01
 num_itr = 500
 batch_size = 128
 display_step = 10
