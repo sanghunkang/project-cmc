@@ -9,58 +9,54 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pywt
 
-# Open image
-FPATH_SMPL = "..\\..\\data_light\\bmp\\I0000001.BMP"
+# Directory to process
+DIR_FPATH = "../../data_light/"
 
-arr_img = np.asarray(img)
-arr_img = np.swapaxes(arr_img, 0, 2)
-arr_img = np.swapaxes(arr_img, 1, 2)
-arr_img = arr_img[0]
+def convert_img2arr(fpath):
+	img = Image.open(fpath)
+	arr_img = np.asarray(img)
 
-plt.imshow(arr_img, 'gray')
-plt.show()
+	if len(arr_img.shape) == 3:
+		arr_img = np.swapaxes(arr_img, 0, 2)
+		arr_img = np.swapaxes(arr_img, 1, 2)
+		arr_img = arr_img[0]
 
-_, cA = pywt.dwt(arr_img, 'db2', axis=1)
-_, cA = pywt.dwt(arr_img, 'db2', axis=0)
-
-_, cA = pywt.dwt(cA, 'db2', axis=0)
-_, cA = pywt.dwt(cA, 'db2', axis=1)
+	return arr_img
 
 # Show results, people don't believe written results
-# cA = LL, cH = LH, cV = HL, cD = HH
-LL1, (cH, cV, cD) = pywt.dwt2(arr_img, 'haar')
+def transform_wavelet(arr_img, times):
+	seq_E_kl = []
+	for i in range(times):
+		LL_N, (LH_N, HL_N, HH_N) = pywt.dwt2(arr_img, 'haar')
+		seq_img_subband = [LL_N, LH_N, HL_N, HH_N]
+		for img_subband in seq_img_subband:
+			E_kl = np.sum(img_subband**2/img_subband.shape[0]/img_subband.shape[1])
+			# print(E_kl)
+			seq_E_kl.append(E_kl)
+		arr_img = LL_N
 
-plt.imshow(LL1, 'gray')
-plt.show()
+		# plt.imshow(LL_N, 'gray')
+		# plt.show()
+	return seq_E_kl
 
-for x in (cH, cV, cD):
-	plt.imshow(x, 'gray')
-	plt.show()
+def reformat_seq2csvstr(seq):
+	str_csv = ""
+	for E_kl in seq: str_csv = str_csv + str(E_kl) + ", "
+	str_csv = str_csv.strip(", ")
+	return str_csv
 
-LL2, (cH, cV, cD) = pywt.dwt2(LL1, 'haar')
-plt.imshow(LL2, 'gray')
-plt.show()
+str_fwrite = ""
+for fpath in os.listdir(DIR_FPATH):
+	try:
+		fpath_abs = DIR_FPATH + fpath
+		arr_img = convert_img2arr(fpath_abs)
+		seq_E_kl = transform_wavelet(arr_img, 7)
+		str_E_kl = reformat_seq2csvstr(seq_E_kl)
+		print(str_E_kl)
 
-for x in (cH, cV, cD):
-	plt.imshow(x, 'gray')
-	plt.show()
+		str_fwrite = str_fwrite + str_E_kl + "\n"
+	except IsADirectoryError:
+		pass
 
-
-LL3, (cH, cV, cD) = pywt.dwt2(LL2, 'haar')
-plt.imshow(LL3, 'gray')
-plt.show()
-
-for x in (cH, cV, cD):
-	plt.imshow(x, 'gray')
-	plt.show()
-
-
-
-# plt.imshow(cA_H, 'binary')
-# plt.show()
-
-# plt.imshow(cA_HV, 'binary')
-# plt.show()
-
-# plt.imshow(cA_VH, 'binary')
-# plt.show()
+with open("wt.csv", "w", encoding="utf-8") as fw:
+	fw.write(str_fwrite)
