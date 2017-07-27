@@ -10,6 +10,7 @@ import tensorflow as tf
 
 from arxtInceptionv1 import arxt_inceptionv1
 
+
 FPATH_DATA_WEIGHTPRETRAINED = "../../../../dev-data/weightPretrained/googlenet.npy"
 FPATH_DATA_TRAIN =  "../../../../dev-data/pickle/data_train.pickle"
 FPATH_DATA_TEST =  "../../../../dev-data/pickle/data_test.pickle"
