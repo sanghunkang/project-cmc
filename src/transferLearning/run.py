@@ -8,7 +8,7 @@ import _pickle as cPickle
 import numpy as np
 import tensorflow as tf
 
-from arxtInceptionv1 import arxt_inceptionv1
+from arxtectInceptionv1 import arxtect_inceptionv1
 
 
 FPATH_DATA_WEIGHTPRETRAINED = "../../../../dev-data/weightPretrained/googlenet.npy"
@@ -57,7 +57,7 @@ def feed_dict(data, batch_size, len_input):
 
 # Inception-v1
 print("++++++++++ Inception-v1 ++++++++++")
-dict_lyr = np.load(FPATH_DATA_WEIGHTPRETRAINED, encoding = 'latin1').item() # return dict
+dict_lyr = np.load(FPATH_DATA_WEIGHTPRETRAINED, encoding='latin1').item() # return dict
 params_pre = reformat_params(dict_lyr)
 
 data_saved = {'var_epoch_saved': tf.Variable(0)}
@@ -80,13 +80,13 @@ num_class = 2 # Normal or Abnormal
 X = tf.placeholder(tf.float32, [None, len_input])
 y = tf.placeholder(tf.float32, [None, num_class])
 
-pred = arxt_inceptionv1(X, params_pre, params)
+pred = arxtect_inceptionv1(X, params_pre, params)
 
 # BUILDING THE COMPUTATIONAL GRAPH
 # Hyperparameters
-learning_rate = 0.01
-num_itr = 500
-batch_size = 128
+learning_rate = 0.0001
+num_itr = 100
+batch_size = 512
 display_step = 10
 
 # Define loss and optimiser
@@ -125,36 +125,36 @@ with tf.Session(config=config) as sess:
 	sess.run(init)
 	
 	# with tf.device("/cpu:0"):
-	with tf.device("/gpu:0"):
-		# For train
-		try:
-			saver.restore(sess, './modelckpt/inception.ckpt')
-			print('Model restored')
-			epoch_saved = data_saved['var_epoch_saved'].eval()
-		except tf.errors.NotFoundError:
-			print('No saved model found')
-			epoch_saved = 1
-		except tf.errors.InvalidArgumentError:
-			print('Model structure has change. Rebuild model')
-			epoch_saved = 1
+	# with tf.device("/gpu:1"):
+	# For train
+	try:
+		saver.restore(sess, './modelckpt/inception.ckpt')
+		print('Model restored')
+		epoch_saved = data_saved['var_epoch_saved'].eval()
+	except tf.errors.NotFoundError:
+		print('No saved model found')
+		epoch_saved = 1
+	except tf.errors.InvalidArgumentError:
+		print('Model structure has change. Rebuild model')
+		epoch_saved = 1
 
-		# Training cycle
-		for epoch in range(epoch_saved, epoch_saved + num_itr + 1):
-			# Run optimization op (backprop)
-			summary, acc_train, loss_train, _ = sess.run([merged, accuracy, cost, optimizer], feed_dict=feed_dict(data_train, batch_size, len_input))
-			train_writer.add_summary(summary, epoch)
-			
-			summary, acc_test = sess.run([merged, accuracy], feed_dict=feed_dict(data_test, batch_size, len_input))
-			test_writer.add_summary(summary, epoch)
-			print("Accuracy at step {0}: {1}".format(epoch, acc_test))
+	# Training cycle
+	for epoch in range(epoch_saved, epoch_saved + num_itr + 1):
+		# Run optimization op (backprop)
+		summary, acc_train, loss_train, _ = sess.run([merged, accuracy, cost, optimizer], feed_dict=feed_dict(data_train, batch_size, len_input))
+		train_writer.add_summary(summary, epoch)
 
-			if epoch % display_step == 0:
-				print("Epoch {0}, Minibatch Loss= {1:.6f}, Train Accuracy= {2:.5f}".format(epoch, loss_train, acc_train))
-	
-		print("Optimisation Finished!")
+		summary, acc_test = sess.run([merged, accuracy], feed_dict=feed_dict(data_test, batch_size, len_input))
+		test_writer.add_summary(summary, epoch)
+		print("Accuracy at step {0}: {1}".format(epoch, acc_test))
 
-		# Save the variables
-		epoch_new = epoch_saved + num_itr
-		sess.run(data_saved["var_epoch_saved"].assign(epoch_saved + num_itr))
-		fpath_ckpt = saver.save(sess, "./modelckpt/inception.ckpt")
-		print("Model saved in file: {0}".format(fpath_ckpt))
+		if epoch % display_step == 0:
+			print("Epoch {0}, Minibatch Loss= {1:.6f}, Train Accuracy= {2:.5f}".format(epoch, loss_train, acc_train))
+
+	print("Optimisation Finished!")
+
+	# Save the variables
+	epoch_new = epoch_saved + num_itr
+	sess.run(data_saved["var_epoch_saved"].assign(epoch_saved + num_itr))
+	fpath_ckpt = saver.save(sess, "./modelckpt/inception.ckpt")
+	print("Model saved in file: {0}".format(fpath_ckpt))
