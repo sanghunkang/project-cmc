@@ -59,6 +59,12 @@ def feed_dict(data, batch_size, len_input):
 			y0: batch[:batch_size//2, len_input:],
 			y1: batch[batch_size//2:, len_input:]}
 
+# def merge_gradients(grad0, grad1):
+# 	grad_merged = {}
+# 	for i, pair in enumerate(grad0): grad0[i] = tf.add grad0[i][0] + grad1[i][0]
+# 		grad_merged[a] = 0.5
+
+
 # Inception-v1
 print("++++++++++ Inception-v1 ++++++++++")
 dict_lyr = np.load(FPATH_DATA_WEIGHTPRETRAINED, encoding='latin1').item() # return dict
@@ -77,47 +83,47 @@ params = {
 	'fc8_b': tf.Variable(tf.random_normal([2]), name='fc8_b'), # 2 outputs (class prediction)
 }
 
-
-
-
 # BUILDING THE COMPUTATIONAL GRAPH
 # Hyperparameters
 learning_rate = 0.0001
 num_itr = 100
-batch_size = 512
+batch_size = 128
 display_step = 10
 
 # tf Graph input
-len_input = 224*224*3
+len_input = 448*448*3
 num_class = 2 # Normal or Abnormal
 
-
 X0 = tf.placeholder(tf.float32, [None, len_input])
-X1 = tf.placeholder(tf.float32, [None, len_input])
 y0 = tf.placeholder(tf.float32, [None, num_class])
+X1 = tf.placeholder(tf.float32, [None, len_input])
 y1 = tf.placeholder(tf.float32, [None, num_class])
 
 with tf.device("/gpu:0"):
+	# Define loss, compute gradients
 	pred0 = arxtect_inceptionv1(X0, params_pre, params)
 	crossEntropy0 = tf.nn.softmax_cross_entropy_with_logits(logits=pred0, labels=y0)
 	cost0 = tf.reduce_mean(crossEntropy0)
+	grad0 = tf.train.AdamOptimizer(learning_rate=learning_rate).compute_gradients(cost0)
 
+	# Evaluate
 	correct_pred0 = tf.equal(tf.argmax(pred0, 1), tf.argmax(y0, 1))
 
-	grad0 = tf.train.AdamOptimizer(learning_rate=learning_rate).compute_gradients(cost0)
-	optimizer0 = tf.train.AdamOptimizer(learning_rate=learning_rate).apply_gradients(grad0)
-
 with tf.device("/gpu:1"):
+	# Define loss, compute gradients
 	pred1 = arxtect_inceptionv1(X1, params_pre, params)
 	crossEntropy1 = tf.nn.softmax_cross_entropy_with_logits(logits=pred1, labels=y1)
 	cost1 = tf.reduce_mean(crossEntropy1)
+	grad1 = tf.train.AdamOptimizer(learning_rate=learning_rate).compute_gradients(cost1)
 
+	# Evaluate
 	correct_pred1 = tf.equal(tf.argmax(pred1, 1), tf.argmax(y1, 1))
 
-	cost = cost0 + cost1
-	# Define loss and optimiser
-	grad1 = tf.train.AdamOptimizer(learning_rate=learning_rate).compute_gradients(cost1)
-	optimizer1 = tf.train.AdamOptimizer(learning_rate=learning_rate).apply_gradients(grad1)
+	# Merging computed gradients and cost (hopefully)
+	grad = grad0 + grad1
+	optimizer1 = tf.train.AdamOptimizer(learning_rate=learning_rate).apply_gradients(grad)
+
+	cost = 0.5*(cost0 + cost1)
 
 # Evaluate model
 correct_pred = tf.concat([correct_pred0, correct_pred1], axis=0)
@@ -149,8 +155,6 @@ with tf.Session(config=config) as sess:
 	init = tf.global_variables_initializer()
 	sess.run(init)
 
-	# with tf.device("/cpu:0"):
-	# with tf.device("/gpu:1"):
 	# For train
 	try:
 		saver.restore(sess, './modelckpt/inception.ckpt')
@@ -167,7 +171,7 @@ with tf.Session(config=config) as sess:
 	t0 = time.time()
 	for epoch in range(epoch_saved, epoch_saved + num_itr + 1):
 		# Run optimization op (backprop)
-		summary, acc_train, loss_train, _, _1 = sess.run([merged, accuracy, cost, optimizer0, optimizer1], feed_dict=feed_dict(data_train, batch_size, len_input))
+		summary, acc_train, loss_train, _ = sess.run([merged, accuracy, cost, optimizer1], feed_dict=feed_dict(data_train, batch_size, len_input))
 		train_writer.add_summary(summary, epoch)
 
 		summary, acc_test = sess.run([merged, accuracy], feed_dict=feed_dict(data_test, batch_size, len_input))
