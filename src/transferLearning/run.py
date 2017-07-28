@@ -3,6 +3,7 @@
 
 # Import built-in packages
 import _pickle as cPickle
+import time
 
 # Import external packages
 import numpy as np
@@ -53,7 +54,10 @@ def feed_dict(data, batch_size, len_input):
 					: dict, {X: np.array of shape(len_input, batch_size), y: np.array of shape(num_class, batch_size)}
 	"""
 	batch = data[np.random.choice(data.shape[0], size=batch_size,  replace=True)]
-	return {X: batch[:,:len_input], y: batch[:,len_input:]}
+	return {X0: batch[:batch_size//2, :len_input],
+			X1: batch[batch_size//2:, :len_input],
+			y0: batch[:batch_size//2, len_input:],
+			y1: batch[batch_size//2:, len_input:]}
 
 # Inception-v1
 print("++++++++++ Inception-v1 ++++++++++")
@@ -73,29 +77,47 @@ params = {
 	'fc8_b': tf.Variable(tf.random_normal([2]), name='fc8_b'), # 2 outputs (class prediction)
 }
 
-# tf Graph input
-len_input = 224*224*3
-num_class = 2 # Normal or Abnormal
 
-X = tf.placeholder(tf.float32, [None, len_input])
-y = tf.placeholder(tf.float32, [None, num_class])
 
-pred = arxtect_inceptionv1(X, params_pre, params)
 
 # BUILDING THE COMPUTATIONAL GRAPH
 # Hyperparameters
 learning_rate = 0.0001
 num_itr = 100
-batch_size = 512
+batch_size = 256
 display_step = 10
 
+# tf Graph input
+len_input = 224*224*3
+num_class = 2 # Normal or Abnormal
+
+
+X0 = tf.placeholder(tf.float32, [None, len_input])
+X1 = tf.placeholder(tf.float32, [None, len_input])
+y0 = tf.placeholder(tf.float32, [None, num_class])
+y1 = tf.placeholder(tf.float32, [None, num_class])
+
+with tf.device("/gpu:0"):
+	pred0 = arxtect_inceptionv1(X0, params_pre, params)
+	crossEntropy0 = tf.nn.softmax_cross_entropy_with_logits(logits=pred0, labels=y0)
+	cost0 = tf.reduce_mean(crossEntropy0)
+
+	correct_pred0 = tf.equal(tf.argmax(pred0, 1), tf.argmax(y0, 1))
+
+with tf.device("/gpu:1"):
+	pred1 = arxtect_inceptionv1(X1, params_pre, params)
+	crossEntropy1 = tf.nn.softmax_cross_entropy_with_logits(logits=pred1, labels=y1)
+	cost1 = tf.reduce_mean(crossEntropy1)
+
+	correct_pred1 = tf.equal(tf.argmax(pred1, 1), tf.argmax(y1, 1))
+	print(type(correct_pred1))
+
 # Define loss and optimiser
-crossEntropy = tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=y)
-cost = tf.reduce_mean(crossEntropy)
+cost = cost0 + cost1
 optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 
 # Evaluate model
-correct_pred = tf.equal(tf.argmax(pred, 1), tf.argmax(y, 1))
+correct_pred = tf.concat([correct_pred0, correct_pred1], axis=0)
 accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
 # Integrate tf summaries
@@ -139,6 +161,7 @@ with tf.Session(config=config) as sess:
 		epoch_saved = 1
 
 	# Training cycle
+	t0 = time.time()
 	for epoch in range(epoch_saved, epoch_saved + num_itr + 1):
 		# Run optimization op (backprop)
 		summary, acc_train, loss_train, _ = sess.run([merged, accuracy, cost, optimizer], feed_dict=feed_dict(data_train, batch_size, len_input))
@@ -152,6 +175,8 @@ with tf.Session(config=config) as sess:
 			print("Epoch {0}, Minibatch Loss= {1:.6f}, Train Accuracy= {2:.5f}".format(epoch, loss_train, acc_train))
 
 	print("Optimisation Finished!")
+	t1 = time.time()
+	print(t1-t0)
 
 	# Save the variables
 	epoch_new = epoch_saved + num_itr
