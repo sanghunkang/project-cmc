@@ -84,7 +84,7 @@ params = {
 # Hyperparameters
 learning_rate = 0.0001
 num_itr = 100
-batch_size = 256
+batch_size = 512
 display_step = 10
 
 # tf Graph input
@@ -104,17 +104,20 @@ with tf.device("/gpu:0"):
 
 	correct_pred0 = tf.equal(tf.argmax(pred0, 1), tf.argmax(y0, 1))
 
+	grad0 = tf.train.AdamOptimizer(learning_rate=learning_rate).compute_gradients(cost0)
+	optimizer0 = tf.train.AdamOptimizer(learning_rate=learning_rate).apply_gradients(grad0)
+
 with tf.device("/gpu:1"):
 	pred1 = arxtect_inceptionv1(X1, params_pre, params)
 	crossEntropy1 = tf.nn.softmax_cross_entropy_with_logits(logits=pred1, labels=y1)
 	cost1 = tf.reduce_mean(crossEntropy1)
 
 	correct_pred1 = tf.equal(tf.argmax(pred1, 1), tf.argmax(y1, 1))
-	print(type(correct_pred1))
 
-# Define loss and optimiser
-cost = cost0 + cost1
-optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
+	cost = cost0 + cost1
+	# Define loss and optimiser
+	grad1 = tf.train.AdamOptimizer(learning_rate=learning_rate).compute_gradients(cost1)
+	optimizer1 = tf.train.AdamOptimizer(learning_rate=learning_rate).apply_gradients(grad1)
 
 # Evaluate model
 correct_pred = tf.concat([correct_pred0, correct_pred1], axis=0)
@@ -126,7 +129,7 @@ tf.summary.scalar('accuracy', accuracy)
 merged = tf.summary.merge_all()
 
 # RUNNING THE COMPUTATIONAL GRAPH
-# Define saver 
+# Define saver
 saver = tf.train.Saver()
 
 # Configure memory growth
@@ -141,11 +144,11 @@ with tf.Session(config=config) as sess:
 	summaries_dir = './logs'
 	train_writer = tf.summary.FileWriter(summaries_dir + '/train', sess.graph)
 	test_writer = tf.summary.FileWriter(summaries_dir + '/test')
-	
+
 	# Initialise the variables and run
 	init = tf.global_variables_initializer()
 	sess.run(init)
-	
+
 	# with tf.device("/cpu:0"):
 	# with tf.device("/gpu:1"):
 	# For train
@@ -164,7 +167,7 @@ with tf.Session(config=config) as sess:
 	t0 = time.time()
 	for epoch in range(epoch_saved, epoch_saved + num_itr + 1):
 		# Run optimization op (backprop)
-		summary, acc_train, loss_train, _ = sess.run([merged, accuracy, cost, optimizer], feed_dict=feed_dict(data_train, batch_size, len_input))
+		summary, acc_train, loss_train, _, _1 = sess.run([merged, accuracy, cost, optimizer0, optimizer1], feed_dict=feed_dict(data_train, batch_size, len_input))
 		train_writer.add_summary(summary, epoch)
 
 		summary, acc_test = sess.run([merged, accuracy], feed_dict=feed_dict(data_test, batch_size, len_input))
