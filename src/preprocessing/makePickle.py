@@ -49,6 +49,13 @@ def dir_to_pickle(dir_src, resolution, vec_class):
 
 	return seq_rec
 
+def divide_trainNtest(seq_rec, ratio_train):
+	np.random.shuffle(seq_rec)
+	seq_rec_train = seq_rec[:int(seq_rec.shape[0]*ratio_train)]
+	seq_rec_test = seq_rec[int(seq_rec.shape[0]*ratio_train):]
+	return seq_rec_train, seq_rec_test
+
+
 seq_rec_train_C00 = dir_to_pickle(DIR_DATA_LABELLED_C00_TRAIN, (len_h, len_w, len_c), [1, 0])
 seq_rec_train_CNN = dir_to_pickle(DIR_DATA_LABELLED_CNN_TRAIN, (len_h, len_w, len_c), [0, 1])
 seq_rec_train = np.concatenate([seq_rec_train_C00, seq_rec_train_CNN])
