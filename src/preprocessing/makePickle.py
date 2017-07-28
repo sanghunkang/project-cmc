@@ -2,14 +2,13 @@
 # -*- coding: utf-8 -*-
 #############################################################################
 # Import built-in modules
-import os, subprocess, sys, shutil
-import _pickle as cPickle
+import os
 import pickle as pickle
+import sys
 
-# Import 3rd party packages
-import matplotlib.pyplot as plt
-import numpy as np
 import PIL.Image as Image
+# Import 3rd party packages
+import numpy as np
 
 # Import built-in packages
 
@@ -20,8 +19,8 @@ DIR_DATA_LABELLED_C00_TEST = "C:\\dev-data\\labelled-C00-test\\"
 DIR_DATA_LABELLED_CNN_TEST = "C:\\dev-data\\labelled-CNN-test\\"
 DIR_DATA_PICKLE = "C:\\dev-data\\pickle\\"
 
-len_h = 224#*4
-len_w = 224#*4
+len_h = 448#*4
+len_w = 448#*4
 len_c = 3
 n_class = 2 # Normal & abnormal
 

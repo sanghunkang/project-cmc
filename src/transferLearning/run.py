@@ -3,12 +3,14 @@
 
 # Import built-in packages
 import _pickle as cPickle
+import time
 
 # Import external packages
 import numpy as np
 import tensorflow as tf
 
-from arxtInceptionv1 import arxt_inceptionv1
+from arxtectInceptionv1 import arxtect_inceptionv1
+
 
 FPATH_DATA_WEIGHTPRETRAINED = "../../../../dev-data/weightPretrained/googlenet.npy"
 FPATH_DATA_TRAIN =  "../../../../dev-data/pickle/data_train.pickle"
@@ -52,11 +54,20 @@ def feed_dict(data, batch_size, len_input):
 					: dict, {X: np.array of shape(len_input, batch_size), y: np.array of shape(num_class, batch_size)}
 	"""
 	batch = data[np.random.choice(data.shape[0], size=batch_size,  replace=True)]
-	return {X: batch[:,:len_input], y: batch[:,len_input:]}
+	return {X0: batch[:batch_size//2, :len_input],
+			X1: batch[batch_size//2:, :len_input],
+			y0: batch[:batch_size//2, len_input:],
+			y1: batch[batch_size//2:, len_input:]}
+
+# def merge_gradients(grad0, grad1):
+# 	grad_merged = {}
+# 	for i, pair in enumerate(grad0): grad0[i] = tf.add grad0[i][0] + grad1[i][0]
+# 		grad_merged[a] = 0.5
+
 
 # Inception-v1
 print("++++++++++ Inception-v1 ++++++++++")
-dict_lyr = np.load(FPATH_DATA_WEIGHTPRETRAINED, encoding = 'latin1').item() # return dict
+dict_lyr = np.load(FPATH_DATA_WEIGHTPRETRAINED, encoding='latin1').item() # return dict
 params_pre = reformat_params(dict_lyr)
 
 data_saved = {'var_epoch_saved': tf.Variable(0)}
@@ -72,29 +83,50 @@ params = {
 	'fc8_b': tf.Variable(tf.random_normal([2]), name='fc8_b'), # 2 outputs (class prediction)
 }
 
-# tf Graph input
-len_input = 224*224*3
-num_class = 2 # Normal or Abnormal
-
-X = tf.placeholder(tf.float32, [None, len_input])
-y = tf.placeholder(tf.float32, [None, num_class])
-
-pred = arxt_inceptionv1(X, params_pre, params)
-
 # BUILDING THE COMPUTATIONAL GRAPH
 # Hyperparameters
-learning_rate = 0.01
-num_itr = 500
+learning_rate = 0.0001
+num_itr = 100
 batch_size = 128
 display_step = 10
 
-# Define loss and optimiser
-crossEntropy = tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=y)
-cost = tf.reduce_mean(crossEntropy)
-optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
+# tf Graph input
+len_input = 448*448*3
+num_class = 2 # Normal or Abnormal
+
+X0 = tf.placeholder(tf.float32, [None, len_input])
+y0 = tf.placeholder(tf.float32, [None, num_class])
+X1 = tf.placeholder(tf.float32, [None, len_input])
+y1 = tf.placeholder(tf.float32, [None, num_class])
+
+with tf.device("/gpu:0"):
+	# Define loss, compute gradients
+	pred0 = arxtect_inceptionv1(X0, params_pre, params)
+	crossEntropy0 = tf.nn.softmax_cross_entropy_with_logits(logits=pred0, labels=y0)
+	cost0 = tf.reduce_mean(crossEntropy0)
+	grad0 = tf.train.AdamOptimizer(learning_rate=learning_rate).compute_gradients(cost0)
+
+	# Evaluate
+	correct_pred0 = tf.equal(tf.argmax(pred0, 1), tf.argmax(y0, 1))
+
+with tf.device("/gpu:1"):
+	# Define loss, compute gradients
+	pred1 = arxtect_inceptionv1(X1, params_pre, params)
+	crossEntropy1 = tf.nn.softmax_cross_entropy_with_logits(logits=pred1, labels=y1)
+	cost1 = tf.reduce_mean(crossEntropy1)
+	grad1 = tf.train.AdamOptimizer(learning_rate=learning_rate).compute_gradients(cost1)
+
+	# Evaluate
+	correct_pred1 = tf.equal(tf.argmax(pred1, 1), tf.argmax(y1, 1))
+
+	# Merging computed gradients and cost (hopefully)
+	grad = grad0 + grad1
+	optimizer1 = tf.train.AdamOptimizer(learning_rate=learning_rate).apply_gradients(grad)
+
+	cost = 0.5*(cost0 + cost1)
 
 # Evaluate model
-correct_pred = tf.equal(tf.argmax(pred, 1), tf.argmax(y, 1))
+correct_pred = tf.concat([correct_pred0, correct_pred1], axis=0)
 accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
 # Integrate tf summaries
@@ -103,7 +135,7 @@ tf.summary.scalar('accuracy', accuracy)
 merged = tf.summary.merge_all()
 
 # RUNNING THE COMPUTATIONAL GRAPH
-# Define saver 
+# Define saver
 saver = tf.train.Saver()
 
 # Configure memory growth
@@ -118,42 +150,43 @@ with tf.Session(config=config) as sess:
 	summaries_dir = './logs'
 	train_writer = tf.summary.FileWriter(summaries_dir + '/train', sess.graph)
 	test_writer = tf.summary.FileWriter(summaries_dir + '/test')
-	
+
 	# Initialise the variables and run
 	init = tf.global_variables_initializer()
 	sess.run(init)
-	
-	# with tf.device("/cpu:0"):
-	with tf.device("/gpu:0"):
-		# For train
-		try:
-			saver.restore(sess, './modelckpt/inception.ckpt')
-			print('Model restored')
-			epoch_saved = data_saved['var_epoch_saved'].eval()
-		except tf.errors.NotFoundError:
-			print('No saved model found')
-			epoch_saved = 1
-		except tf.errors.InvalidArgumentError:
-			print('Model structure has change. Rebuild model')
-			epoch_saved = 1
 
-		# Training cycle
-		for epoch in range(epoch_saved, epoch_saved + num_itr + 1):
-			# Run optimization op (backprop)
-			summary, acc_train, loss_train, _ = sess.run([merged, accuracy, cost, optimizer], feed_dict=feed_dict(data_train, batch_size, len_input))
-			train_writer.add_summary(summary, epoch)
-			
-			summary, acc_test = sess.run([merged, accuracy], feed_dict=feed_dict(data_test, batch_size, len_input))
-			test_writer.add_summary(summary, epoch)
-			print("Accuracy at step {0}: {1}".format(epoch, acc_test))
+	# For train
+	try:
+		saver.restore(sess, './modelckpt/inception.ckpt')
+		print('Model restored')
+		epoch_saved = data_saved['var_epoch_saved'].eval()
+	except tf.errors.NotFoundError:
+		print('No saved model found')
+		epoch_saved = 1
+	except tf.errors.InvalidArgumentError:
+		print('Model structure has change. Rebuild model')
+		epoch_saved = 1
 
-			if epoch % display_step == 0:
-				print("Epoch {0}, Minibatch Loss= {1:.6f}, Train Accuracy= {2:.5f}".format(epoch, loss_train, acc_train))
-	
-		print("Optimisation Finished!")
+	# Training cycle
+	t0 = time.time()
+	for epoch in range(epoch_saved, epoch_saved + num_itr + 1):
+		# Run optimization op (backprop)
+		summary, acc_train, loss_train, _ = sess.run([merged, accuracy, cost, optimizer1], feed_dict=feed_dict(data_train, batch_size, len_input))
+		train_writer.add_summary(summary, epoch)
 
-		# Save the variables
-		epoch_new = epoch_saved + num_itr
-		sess.run(data_saved["var_epoch_saved"].assign(epoch_saved + num_itr))
-		fpath_ckpt = saver.save(sess, "./modelckpt/inception.ckpt")
-		print("Model saved in file: {0}".format(fpath_ckpt))
+		summary, acc_test = sess.run([merged, accuracy], feed_dict=feed_dict(data_test, batch_size, len_input))
+		test_writer.add_summary(summary, epoch)
+		print("Accuracy at step {0}: {1}".format(epoch, acc_test))
+
+		if epoch % display_step == 0:
+			print("Epoch {0}, Minibatch Loss= {1:.6f}, Train Accuracy= {2:.5f}".format(epoch, loss_train, acc_train))
+
+	print("Optimisation Finished!")
+	t1 = time.time()
+	print(t1-t0)
+
+	# Save the variables
+	epoch_new = epoch_saved + num_itr
+	sess.run(data_saved["var_epoch_saved"].assign(epoch_saved + num_itr))
+	fpath_ckpt = saver.save(sess, "./modelckpt/inception.ckpt")
+	print("Model saved in file: {0}".format(fpath_ckpt))

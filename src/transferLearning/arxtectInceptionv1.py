@@ -57,8 +57,8 @@ def inception_module(tsr_X, name_module, params_pre):
 	inception_concat = tf.concat([inception_1x1, inception_3x3, inception_5x5, inception_pool_proj], axis=-1)
 	return inception_concat
 
-def arxt_inceptionv1(X, params_pre, params):	
-	X_reshaped = tf.reshape(X, shape=[-1, 224, 224, 3])
+def arxtect_inceptionv1(X, params_pre, params):
+	X_reshaped = tf.reshape(X, shape=[-1, 448, 448, 3])
 
 	# Convolution and max pooling(down-sampling) Layers
 	# Convolution parameters are from pretrained data
@@ -82,11 +82,13 @@ def arxt_inceptionv1(X, params_pre, params):
 
 	inception_5a = inception_module(inception_4ep, "inception_5a_", params_pre)
 	inception_5b = inception_module(inception_5a, "inception_5b_", params_pre)
-	inception_5ap = tf.nn.avg_pool(inception_5b, ksize=[1, 1, 1, 1], strides=[1, 7, 7, 1], padding='SAME')
+	print(inception_5b.get_shape())
+	inception_5ap = tf.nn.avg_pool(inception_5b, ksize=[1, 1, 1, 1], strides=[1, 14, 14, 1], padding='SAME')
+	print(inception_5ap.get_shape())
 
 	# Fully connected layer, training is done only for here
 	inception_5ap_1d = conv2ser(inception_5ap, params["fc6_W"])
-	fc6 = fc1d(inception_5ap_1d, params["fc6_W"], params["fc6_b"])
-	fc7 = fc1d(fc6, params["fc7_W"], params["fc7_b"])
+	fc6 = fc1d(inception_5ap_1d, params["fc6_W"], params["fc6_b"], bn=True)
+	fc7 = fc1d(fc6, params["fc7_W"], params["fc7_b"], bn=True)
 	pred = fc1d(fc7, params["fc8_W"], params["fc8_b"], bn=True)
 	return pred
