@@ -83,7 +83,7 @@ def arxtect_inceptionv1(X, params_pre, params):
 	inception_5a = inception_module(inception_4ep, "inception_5a_", params_pre)
 	inception_5b = inception_module(inception_5a, "inception_5b_", params_pre)
 	print(inception_5b.get_shape())
-	inception_5ap = tf.nn.avg_pool(inception_5b, ksize=[1, 1, 1, 1], strides=[1, 14, 14, 1], padding='SAME')
+	inception_5ap = tf.nn.avg_pool(inception_5b, ksize=[1, 1, 1, 1], strides=[1, 7, 7, 1], padding='SAME')
 	print(inception_5ap.get_shape())
 
 	# Fully connected layer, training is done only for here

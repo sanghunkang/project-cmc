@@ -73,7 +73,7 @@ params_pre = reformat_params(dict_lyr)
 data_saved = {'var_epoch_saved': tf.Variable(0)}
 params = {
 	# len_ftmap_end = int(shape_ftmap_end[1]*shape_ftmap_end[2]*shape_ftmap_end[3])
-	'fc6_W': tf.Variable(tf.random_normal([1024, 4096]), name='fc6_W'),
+	'fc6_W': tf.Variable(tf.random_normal([4096, 4096]), name='fc6_W'),
 	'fc6_b': tf.Variable(tf.random_normal([4096]), name='fc6_b'),
 
 	'fc7_W': tf.Variable(tf.random_normal([4096, 4096]), name='fc7_W'),
@@ -86,7 +86,7 @@ params = {
 # BUILDING THE COMPUTATIONAL GRAPH
 # Hyperparameters
 learning_rate = 0.0001
-num_itr = 100
+num_itr = 400
 batch_size = 128
 display_step = 10
 
