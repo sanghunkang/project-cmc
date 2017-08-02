@@ -40,6 +40,10 @@ def dir_to_pickle(dir_src, resolution, vec_class):
 		padding_h, padding_v= (size_img[0] - min_side)/2, (size_img[1] - min_side)/2
 		
 		img_crop = img.crop((padding_h, padding_v, size_img[0] - padding_h, size_img[1] - padding_v))
+		img_crop = img_crop.crop((img_crop.size[0]*0.15, img_crop.size[1]*0, img_crop.size[0]*0.85, img_crop.size[1]*0.70))
+		# img_crop.show()
+
+
 		img_resize = img_crop.resize((len_h, len_w))
 
 		arr_img = np.asarray(img_resize)
@@ -55,8 +59,8 @@ def divide_trainNtest(seq_rec, ratio_train):
 	return seq_rec_train, seq_rec_test
 
 
-seq_rec_train_C00 = dir_to_pickle(DIR_DATA_LABELLED_C00_TRAIN, (len_h, len_w, len_c), [1, 0])
 seq_rec_train_CNN = dir_to_pickle(DIR_DATA_LABELLED_CNN_TRAIN, (len_h, len_w, len_c), [0, 1])
+seq_rec_train_C00 = dir_to_pickle(DIR_DATA_LABELLED_C00_TRAIN, (len_h, len_w, len_c), [1, 0])
 seq_rec_train = np.concatenate([seq_rec_train_C00, seq_rec_train_CNN])
 
 seq_rec_test_C00 = dir_to_pickle(DIR_DATA_LABELLED_C00_TEST, (len_h, len_w, len_c), [1, 0])
@@ -72,8 +76,8 @@ print(seq_rec_test_CNN.shape)
 print(seq_rec_test.shape)
 print(sys.getsizeof(seq_rec_test))
 
-with open(DIR_DATA_PICKLE + "data_train.pickle", 'wb') as handle:
+with open(DIR_DATA_PICKLE + "data_train_80.pickle", 'wb') as handle:
     pickle.dump(seq_rec_train, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-with open(DIR_DATA_PICKLE + "data_test.pickle", 'wb') as handle:
+with open(DIR_DATA_PICKLE + "data_test_80.pickle", 'wb') as handle:
     pickle.dump(seq_rec_test, handle, protocol=pickle.HIGHEST_PROTOCOL)

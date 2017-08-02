@@ -13,8 +13,8 @@ from arxtectInceptionv1 import arxtect_inceptionv1
 
 
 FPATH_DATA_WEIGHTPRETRAINED = "../../../../dev-data/weightPretrained/googlenet.npy"
-FPATH_DATA_TRAIN =  "../../../../dev-data/pickle/data_train.pickle"
-FPATH_DATA_TEST =  "../../../../dev-data/pickle/data_test.pickle"
+FPATH_DATA_TRAIN =  "../../../../dev-data/pickle/data_train_70.pickle"
+FPATH_DATA_TEST =  "../../../../dev-data/pickle/data_test_70.pickle"
 
 # Define some functions... for whatever purposes
 def read_data(fpath):
@@ -85,8 +85,8 @@ params = {
 
 # BUILDING THE COMPUTATIONAL GRAPH
 # Hyperparameters
-learning_rate = 0.0001
-num_itr = 400
+learning_rate = 0.000005
+num_itr = 100
 batch_size = 128
 display_step = 10
 
@@ -157,19 +157,19 @@ with tf.Session(config=config) as sess:
 
 	# For train
 	try:
-		saver.restore(sess, './modelckpt/inception.ckpt')
+		saver.restore(sess, './modelckpt/inception1401.ckpt')
 		print('Model restored')
 		epoch_saved = data_saved['var_epoch_saved'].eval()
 	except tf.errors.NotFoundError:
 		print('No saved model found')
-		epoch_saved = 1
+		epoch_saved = 0
 	except tf.errors.InvalidArgumentError:
 		print('Model structure has change. Rebuild model')
-		epoch_saved = 1
+		epoch_saved = 0
 
 	# Training cycle
 	t0 = time.time()
-	for epoch in range(epoch_saved, epoch_saved + num_itr + 1):
+	for epoch in range(epoch_saved, epoch_saved + num_itr):
 		# Run optimization op (backprop)
 		summary, acc_train, loss_train, _ = sess.run([merged, accuracy, cost, optimizer1], feed_dict=feed_dict(data_train, batch_size, len_input))
 		train_writer.add_summary(summary, epoch)
@@ -187,6 +187,6 @@ with tf.Session(config=config) as sess:
 
 	# Save the variables
 	epoch_new = epoch_saved + num_itr
-	sess.run(data_saved["var_epoch_saved"].assign(epoch_saved + num_itr))
-	fpath_ckpt = saver.save(sess, "./modelckpt/inception.ckpt")
+	sess.run(data_saved["var_epoch_saved"].assign(epoch_new))
+	fpath_ckpt = saver.save(sess, "./modelckpt/inception{0}.ckpt".format(epoch_new))
 	print("Model saved in file: {0}".format(fpath_ckpt))
