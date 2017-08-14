@@ -2,10 +2,8 @@
 # -*- coding: utf-8 -*-
 
 # Import built-in packages
-import _pickle as cPickle
 
 # Import external packages
-import numpy as np
 import tensorflow as tf
 
 def conv2d(x, W, b, strides=1):

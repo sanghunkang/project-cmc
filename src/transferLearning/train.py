@@ -9,12 +9,13 @@ import time
 import numpy as np
 import tensorflow as tf
 
+from params import params
 from arxtectInceptionv1 import arxtect_inceptionv1
 
 
 FPATH_DATA_WEIGHTPRETRAINED = "../../../../dev-data/weightPretrained/googlenet.npy"
-FPATH_DATA_TRAIN =  "../../../../dev-data/pickle/data_train_70.pickle"
-FPATH_DATA_TEST =  "../../../../dev-data/pickle/data_test_70.pickle"
+FPATH_DATA_TRAIN =  "../../../../dev-data/pickle/data_train_th20.pickle"
+FPATH_DATA_TEST =  "../../../../dev-data/pickle/data_test_th20.pickle"
 
 # Define some functions... for whatever purposes
 def read_data(fpath):
@@ -71,22 +72,22 @@ dict_lyr = np.load(FPATH_DATA_WEIGHTPRETRAINED, encoding='latin1').item() # retu
 params_pre = reformat_params(dict_lyr)
 
 data_saved = {'var_epoch_saved': tf.Variable(0)}
-params = {
-	# len_ftmap_end = int(shape_ftmap_end[1]*shape_ftmap_end[2]*shape_ftmap_end[3])
-	'fc6_W': tf.Variable(tf.random_normal([4096, 4096]), name='fc6_W'),
-	'fc6_b': tf.Variable(tf.random_normal([4096]), name='fc6_b'),
-
-	'fc7_W': tf.Variable(tf.random_normal([4096, 4096]), name='fc7_W'),
-	'fc7_b': tf.Variable(tf.random_normal([4096]), name='fc7_b'),
-	
-	'fc8_W': tf.Variable(tf.random_normal([4096, 2]), name='fc8_W'),
-	'fc8_b': tf.Variable(tf.random_normal([2]), name='fc8_b'), # 2 outputs (class prediction)
-}
+# params = {
+# 	# len_ftmap_end = int(shape_ftmap_end[1]*shape_ftmap_end[2]*shape_ftmap_end[3])
+# 	'fc6_W': tf.Variable(tf.random_normal([4096, 4096]), name='fc6_W'),
+# 	'fc6_b': tf.Variable(tf.random_normal([4096]), name='fc6_b'),
+#
+# 	'fc7_W': tf.Variable(tf.random_normal([4096, 4096]), name='fc7_W'),
+# 	'fc7_b': tf.Variable(tf.random_normal([4096]), name='fc7_b'),
+#
+# 	'fc8_W': tf.Variable(tf.random_normal([4096, 2]), name='fc8_W'),
+# 	'fc8_b': tf.Variable(tf.random_normal([2]), name='fc8_b'), # 2 outputs (class prediction)
+# }
 
 # BUILDING THE COMPUTATIONAL GRAPH
 # Hyperparameters
-learning_rate = 0.000005
-num_itr = 100
+learning_rate = 0.0001
+num_itr = 500
 batch_size = 128
 display_step = 10
 
@@ -157,7 +158,7 @@ with tf.Session(config=config) as sess:
 
 	# For train
 	try:
-		saver.restore(sess, './modelckpt/inception1401.ckpt')
+		saver.restore(sess, './modelckpt/inception500.ckpt')
 		print('Model restored')
 		epoch_saved = data_saved['var_epoch_saved'].eval()
 	except tf.errors.NotFoundError:
