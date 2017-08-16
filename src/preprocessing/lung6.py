@@ -24,7 +24,7 @@ elif FLAG_MODE == "-f":
     PATH_DST = sys.argv[3]
 
 # FLAG_MODE = "-f"
-# PATH_SRC = "../../data_light/bmp/I0000001.BMP"
+# PATH_SRC = "../../data_light/bmp/2.bmp"
 # PATH_DST = "../../data_light/sample.bmp"
 
 # Define some functions
@@ -53,15 +53,17 @@ def make_seq_comp_canddt(img_bylabel, num_canddt, size_min):
     seq_label = np.argpartition(counts, -num_canddt)[-num_canddt:]
 
     seq_comp_canddt = []
-    for label in seq_label[:-1]:  # Neglect the most frequent element, which is the background - i.e. 0
+    for label in seq_label:  # Neglect the most frequent element, which is the background - i.e. 0
         # Make image (2D matrix) of zeros
         ret = np.zeros(shape=img_bylabel.shape, dtype=np.int32)
 
         # 1 if an element of img_bylabel matches with the label, remain 0 otherwise
         ret[img_bylabel == label] = 1
+        plt.imshow(ret)
+        plt.show()
 
         # Append only if the size exceeds the threshold
-        if np.sum(ret) > size_min: seq_comp_canddt.append(ret)
+        # if np.sum(ret) > size_min: seq_comp_canddt.append(ret)
     return seq_comp_canddt
 
 
@@ -89,13 +91,15 @@ def make_seq_pair_distComp(seq_comp_canddt, img):
     return seq_pair_distComp
 
 
-def make_sections(seq_pair_distComp):
+def filter_sections(img_bylabel):
     # Sort by ascending order, so that the centermost elements be located at the foremost entries
-    seq_pair_distComp.sort()
+    # seq_pair_distComp.sort()
 
-    # Get the two centermost elements and overlap them
-    section0 = seq_pair_distComp[0][1]
-    section1 = seq_pair_distComp[1][1]
+    unique, counts = np.unique(img_bylabel, return_counts=True)
+    print(zip(unique, counts))
+
+    section0 = np.where(img_bylabel == 1, 1, 0)
+    section1 = np.where(img_bylabel == 2, 1, 0)
 
     centroid_section0 = ndimage.measurements.center_of_mass(section0)
     centroid_img = (section0.shape[0]/2, section1.shape[1]/2)
@@ -156,40 +160,51 @@ for fpath_src, fpath_dst in make_seq_fpath(FLAG_MODE, PATH_SRC, PATH_DST):
         # Read data
         img = cv2.imread(fpath_src, 0)
 
-        # Step 1: Morphological Reconstruction
-        kernel = np.ones((3, 3), np.uint8)
-        erosion = cv2.erode(img, kernel, iterations=1)
-        opening = cv2.morphologyEx(erosion, cv2.MORPH_OPEN, kernel)
-        dilation = cv2.dilate(opening, kernel, iterations=1)
-        closing = cv2.morphologyEx(dilation, cv2.MORPH_CLOSE, kernel)
-        img = closing
+        # # Step 1: Morphological Reconstruction
+        # kernel = np.ones((3, 3), np.uint8)
+        # erosion = cv2.erode(img, kernel, iterations=1)
+        # opening = cv2.morphologyEx(erosion, cv2.MORPH_OPEN, kernel)
+        # dilation = cv2.dilate(opening, kernel, iterations=1)
+        # closing = cv2.morphologyEx(dilation, cv2.MORPH_CLOSE, kernel)
+        # img = closing
 
-        # Step 2: Calculate threshhold and convert into binary image
-        # Otsu's thresholding after Gaussian filtering
-        img_blur = cv2.GaussianBlur(img, (5, 5), 0)
-        _, th_otsugauss = cv2.threshold(img_blur, 0, 255, cv2.THRESH_OTSU)
+        # # Step 2: Calculate threshhold and convert into binary image
+        # # Otsu's thresholding after Gaussian filtering
+        # img_blur = cv2.GaussianBlur(img, (5, 5), 0)
+        # _, th_otsugauss = cv2.threshold(img_blur, 0, 255, cv2.THRESH_OTSU)
 
-        # Rescale to {0, 1}
-        th_otsugauss = (th_otsugauss / 255 - 1) * (-1)
+        # # Rescale to {0, 1}
+        # th_otsugauss = (th_otsugauss / 255 - 1) * (-1)
 
-        # Set the dtype into np.int32
-        kernel_ccl = np.asarray(th_otsugauss, dtype=np.int32)
+        # # Set the dtype into np.int32
+        # kernel_ccl = np.asarray(th_otsugauss, dtype=np.int32)
 
         # Step 3: Connected Component Labelling
 
         # Label images by connected component
-        img_bylabel = measure.label(kernel_ccl)
+        kernel = np.where(img > 0, 1, 0)
+        img_bylabel = measure.label(kernel)
+        print(np.amax(img_bylabel))
 
-        seq_comp_canddt = make_seq_comp_canddt(img_bylabel, 10, 10000)
+        
 
-        # Add distance information to each component
-        seq_pair_distComp = make_seq_pair_distComp(seq_comp_canddt, img)
+        # plt.imshow(img_bylabel)
+        # plt.show()
+
+        # seq_comp_canddt = make_seq_comp_canddt(img_bylabel, 3, 10000)
+        # print(len(seq_comp_canddt))
+
+        # # Add distance information to each component
+        # seq_pair_distComp = make_seq_pair_distComp(seq_comp_canddt, img)
 
         # Make section
-        section0, section1 = make_sections(seq_pair_distComp)
-        section = section0 + section1
+        section0, section1 = filter_sections(img_bylabel)
         
-        img_final = section * img
+
+        # section0, section1 = make_sections(seq_pair_distComp)
+        # section = section0 + section1
+        
+        # img_final = section * img
 
         img_final0 = section0 * img
         img_final1 = section1 * img
@@ -199,7 +214,7 @@ for fpath_src, fpath_dst in make_seq_fpath(FLAG_MODE, PATH_SRC, PATH_DST):
 
         seq_section_final = make_seq_section_final(img_final0, seq0_clipper) + make_seq_section_final(img_final1, seq1_clipper)
         iterate_save_result(seq_section_final, fpath_dst)
-        save_result(img_final, fpath_dst)
+        # save_result(img_final, fpath_dst)
 
         # Step 4: Give paddings
         # kernel_mr = np.ones((10,10), np.int32) # define structure for morphological reconstruction
