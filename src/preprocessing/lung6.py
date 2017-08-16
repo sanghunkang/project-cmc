@@ -14,9 +14,20 @@ import PIL.Image as Image
 import matplotlib.pyplot as plt
 import numpy as np
 
+# FLAG_MODE = sys.argv[1]
+
+# if FLAG_MODE == "-d":
+#     PATH_SRC = sys.argv[2]
+#     PATH_DST = sys.argv[3]
+# elif FLAG_MODE == "-f":
+#     PATH_SRC = sys.argv[2]
+#     PATH_DST = sys.argv[3]
+
+FLAG_MODE = "-f"
+PATH_SRC = "../../data_light/bmp/I0000001.BMP"
+PATH_DST = "../../data_light/sample.bmp"
 
 # Define some functions
-
 def make_seq_fpath(FLAG_MODE, PATH_SRC, PATH_DST=None):
     seq_fpath_src = []
     seq_fpath_dst = []
@@ -26,8 +37,8 @@ def make_seq_fpath(FLAG_MODE, PATH_SRC, PATH_DST=None):
         seq_fpath_dst.append(PATH_DST)
     elif FLAG_MODE == "-d":
         for fname in os.listdir(PATH_SRC):
-            seq_fpath_src.append(PATH_SRC + "/" + fname)
-            seq_fpath_dst.append(PATH_DST + "/" + fname)
+            seq_fpath_src.append(os.path.join(PATH_SRC, fname))
+            seq_fpath_dst.append(os.path.join(PATH_SRC, fname))
     return zip(seq_fpath_src, seq_fpath_dst)
 
 
@@ -56,8 +67,9 @@ def make_seq_comp_canddt(img_bylabel, num_canddt, size_min):
 
 def make_seq_pair_distComp(seq_comp_canddt, img):
     # Calculate the centroid(1) of the entire image + some shift
-    centroid0_img = (img.shape[0] / 2 - 400, img.shape[1] * 1 / 3)
-    centroid1_img = (img.shape[0] / 2 - 400, img.shape[1] * 2 / 3)
+    print(img.shape)
+    centroid0_img = (img.shape[0] / 2 - 400, img.shape[1] * 1 / 2)
+    centroid1_img = (img.shape[0] / 2 - 400, img.shape[1] * 1 / 2)
 
     # Sequence of mappings to return
     seq_pair_distComp = []
@@ -77,26 +89,63 @@ def make_seq_pair_distComp(seq_comp_canddt, img):
     return seq_pair_distComp
 
 
-def make_section(seq_pair_distComp):
+def make_sections(seq_pair_distComp):
     # Sort by ascending order, so that the centermost elements be located at the foremost entries
     seq_pair_distComp.sort()
 
     # Get the two centermost elements and overlap them
-    comp0 = seq_pair_distComp[0][1]
-    comp1 = seq_pair_distComp[1][1]
-    section_lung = comp0 + comp1
+    section0 = seq_pair_distComp[0][1]
+    section1 = seq_pair_distComp[1][1]
 
-    return section_lung
+    centroid_section0 = ndimage.measurements.center_of_mass(section0)
+    centroid_img = (section0.shape[0]/2, section1.shape[1]/2)
+
+    if centroid_section0[1] - centroid_img[1] > 0: return section1, section0
+    else: return section0, section1
+
+def get_bounds_vertical(section):
+    for i in range(section.shape[0]):
+        if np.sum(section[i]) > 0:
+            bound_top = i
+            break
+    for i in range(section.shape[0]-1, 0, -1):
+        if np.sum(section[i]) > 0:
+            bound_bottom = i
+            break
+    return (bound_top, bound_bottom)
+
+def make_clipper(bound, section, position, num_subsegment=3):
+    height_target, width_target = section.shape
+    height_segment = int((bound[1] - bound[0])/num_subsegment)
+    modulo_term = (bound[1] - bound[0])%3
+    if position == (num_subsegment-1): height_segment += modulo_term
+
+    area_zeros_top = np.zeros(shape=(bound[0]+height_segment*position, width_target))
+    area_clip = np.ones(shape=(height_segment, width_target))
+    area_zeros_bottom = np.zeros(shape=(height_target - bound[0] - height_segment*(position+1), width_target))
+    
+    clipper = np.concatenate([area_zeros_top, area_clip, area_zeros_bottom], axis=0)
+    return clipper
+
+def make_seq_clipper(section, num_subsegment=3):
+    bound = get_bounds_vertical(section)
+
+    seq_clipper = []
+    for position in range(num_subsegment): seq_clipper.append(make_clipper(bound, section, position))
+    return seq_clipper
+
+def make_seq_section_final(img_final, seq_clipper):
+    seq_section_final = []
+    for clipper in seq_clipper: seq_section_final.append(img_final*clipper)
+    return seq_section_final
+
+def save_seq_result(seq_section_final, fpath_dst):
+    for i, section in enumerate(seq_section_final):
+        result = Image.fromarray(section.astype(np.uint8))
+        fpath_tmp = fpath_dst.replace(".bmp", "{}.bmp".format(i))
+        result.save(fpath_tmp)    
 
 
-FLAG_MODE = sys.argv[1]
-
-if FLAG_MODE == "-d":
-    PATH_SRC = sys.argv[2]
-    PATH_DST = sys.argv[3]
-elif FLAG_MODE == "-f":
-    PATH_SRC = sys.argv[2]
-    PATH_DST = sys.argv[3]
 
 for fpath_src, fpath_dst in make_seq_fpath(FLAG_MODE, PATH_SRC, PATH_DST):
     # Read data
@@ -126,49 +175,51 @@ for fpath_src, fpath_dst in make_seq_fpath(FLAG_MODE, PATH_SRC, PATH_DST):
     # Label images by connected component
     img_bylabel = measure.label(kernel_ccl)
 
-    seq_comp_canddt = make_seq_comp_canddt(img_bylabel, 10, 10)
+    seq_comp_canddt = make_seq_comp_canddt(img_bylabel, 10, 10000)
 
     # Add distance information to each component
     seq_pair_distComp = make_seq_pair_distComp(seq_comp_canddt, img)
 
     # Make section
-    section = make_section(seq_pair_distComp)
+    section0, section1 = make_sections(seq_pair_distComp)
+    section = section0 + section1
+    
+    img_final = section * img
+    img_final0 = section0 * img
+    img_final1 = section1 * img
+
+    seq0_clipper = make_seq_clipper(section0)
+    seq1_clipper = make_seq_clipper(section1)
+
+    seq_section_final = make_seq_section_final(img_final0, seq0_clipper) + make_seq_section_final(img_final1, seq1_clipper)
+    save_seq_result(seq_section_final, fpath_dst)
 
     # Step 4: Give paddings
-
     # kernel_mr = np.ones((10,10), np.int32) # define structure for morphological reconstruction
     # section_mr = ndimage.binary_dilation(section, structure=kernel_mr, iterations=10) # dilation
     # section_mr = ndimage.binary_erosion(section_mr, structure=kernel_mr, iterations=5) # erosion
     # img_final = section_mr*img
-    img_final = section * img
 
     # Plots
 
-    plt.figure(figsize=(12, 8))
+    plt.figure(figsize=(8, 8))
 
-    plt.subplot(231)
+    plt.subplot(331)
     plt.imshow(kernel_ccl, cmap='gray')
     plt.axis('off')
 
-    plt.subplot(232)
+    plt.subplot(332)
     plt.imshow(closing, cmap='gray')
     plt.axis('off')
 
-    plt.subplot(233)
+    plt.subplot(333)
     plt.imshow(img_bylabel, cmap='nipy_spectral')
     plt.axis('off')
 
-    plt.subplot(234)
-    plt.imshow(section, cmap='gray')
-    plt.axis('off')
-
-    plt.subplot(235)
-    plt.imshow(img_final, cmap='gray')
-    plt.axis('off')
+    for i, section in enumerate(seq_section_final):
+        plt.subplot(334+i)
+        plt.imshow(section, cmap='gray')
+        plt.axis('off')
 
     plt.tight_layout()
     plt.show()
-
-    result = Image.fromarray(img_final.astype(np.uint8))
-    result.save(fpath_dst)
-    ##############################################################################
