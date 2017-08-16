@@ -14,18 +14,18 @@ import PIL.Image as Image
 import matplotlib.pyplot as plt
 import numpy as np
 
-# FLAG_MODE = sys.argv[1]
+FLAG_MODE = sys.argv[1]
 
-# if FLAG_MODE == "-d":
-#     PATH_SRC = sys.argv[2]
-#     PATH_DST = sys.argv[3]
-# elif FLAG_MODE == "-f":
-#     PATH_SRC = sys.argv[2]
-#     PATH_DST = sys.argv[3]
+if FLAG_MODE == "-d":
+    PATH_SRC = sys.argv[2]
+    PATH_DST = sys.argv[3]
+elif FLAG_MODE == "-f":
+    PATH_SRC = sys.argv[2]
+    PATH_DST = sys.argv[3]
 
-FLAG_MODE = "-f"
-PATH_SRC = "../../data_light/bmp/I0000001.BMP"
-PATH_DST = "../../data_light/sample.bmp"
+# FLAG_MODE = "-f"
+# PATH_SRC = "../../data_light/bmp/I0000001.BMP"
+# PATH_DST = "../../data_light/sample.bmp"
 
 # Define some functions
 def make_seq_fpath(FLAG_MODE, PATH_SRC, PATH_DST=None):
@@ -38,7 +38,7 @@ def make_seq_fpath(FLAG_MODE, PATH_SRC, PATH_DST=None):
     elif FLAG_MODE == "-d":
         for fname in os.listdir(PATH_SRC):
             seq_fpath_src.append(os.path.join(PATH_SRC, fname))
-            seq_fpath_dst.append(os.path.join(PATH_SRC, fname))
+            seq_fpath_dst.append(os.path.join(PATH_DST, fname))
     return zip(seq_fpath_src, seq_fpath_dst)
 
 
@@ -139,87 +139,97 @@ def make_seq_section_final(img_final, seq_clipper):
     for clipper in seq_clipper: seq_section_final.append(img_final*clipper)
     return seq_section_final
 
-def save_seq_result(seq_section_final, fpath_dst):
-    for i, section in enumerate(seq_section_final):
-        result = Image.fromarray(section.astype(np.uint8))
-        fpath_tmp = fpath_dst.replace(".bmp", "{}.bmp".format(i))
-        result.save(fpath_tmp)    
+def reformat_fpath_dst(fpath_dst, i):
+    fpath_tmp = fpath_dst.replace(".bmp", "_{}.bmp".format(i))
+    return fpath_tmp
 
+def save_result(section, fpath_dst):
+    result = Image.fromarray(section.astype(np.uint8))
+    result.save(fpath_dst)
 
+def iterate_save_result(seq_section_final, fpath_dst):
+    for i, section in enumerate(seq_section_final): save_result(section, reformat_fpath_dst(fpath_dst, i))
 
 for fpath_src, fpath_dst in make_seq_fpath(FLAG_MODE, PATH_SRC, PATH_DST):
-    # Read data
-    img = cv2.imread(fpath_src, 0)
+    try:
+        print(fpath_dst)
+        # Read data
+        img = cv2.imread(fpath_src, 0)
 
-    # Step 1: Morphological Reconstruction
-    kernel = np.ones((3, 3), np.uint8)
-    erosion = cv2.erode(img, kernel, iterations=1)
-    opening = cv2.morphologyEx(erosion, cv2.MORPH_OPEN, kernel)
-    dilation = cv2.dilate(opening, kernel, iterations=1)
-    closing = cv2.morphologyEx(dilation, cv2.MORPH_CLOSE, kernel)
-    img = closing
+        # Step 1: Morphological Reconstruction
+        kernel = np.ones((3, 3), np.uint8)
+        erosion = cv2.erode(img, kernel, iterations=1)
+        opening = cv2.morphologyEx(erosion, cv2.MORPH_OPEN, kernel)
+        dilation = cv2.dilate(opening, kernel, iterations=1)
+        closing = cv2.morphologyEx(dilation, cv2.MORPH_CLOSE, kernel)
+        img = closing
 
-    # Step 2: Calculate threshhold and convert into binary image
-    # Otsu's thresholding after Gaussian filtering
-    img_blur = cv2.GaussianBlur(img, (5, 5), 0)
-    _, th_otsugauss = cv2.threshold(img_blur, 0, 255, cv2.THRESH_OTSU)
+        # Step 2: Calculate threshhold and convert into binary image
+        # Otsu's thresholding after Gaussian filtering
+        img_blur = cv2.GaussianBlur(img, (5, 5), 0)
+        _, th_otsugauss = cv2.threshold(img_blur, 0, 255, cv2.THRESH_OTSU)
 
-    # Rescale to {0, 1}
-    th_otsugauss = (th_otsugauss / 255 - 1) * (-1)
+        # Rescale to {0, 1}
+        th_otsugauss = (th_otsugauss / 255 - 1) * (-1)
 
-    # Set the dtype into np.int32
-    kernel_ccl = np.asarray(th_otsugauss, dtype=np.int32)
+        # Set the dtype into np.int32
+        kernel_ccl = np.asarray(th_otsugauss, dtype=np.int32)
 
-    # Step 3: Connected Component Labelling
+        # Step 3: Connected Component Labelling
 
-    # Label images by connected component
-    img_bylabel = measure.label(kernel_ccl)
+        # Label images by connected component
+        img_bylabel = measure.label(kernel_ccl)
 
-    seq_comp_canddt = make_seq_comp_canddt(img_bylabel, 10, 10000)
+        seq_comp_canddt = make_seq_comp_canddt(img_bylabel, 10, 10000)
 
-    # Add distance information to each component
-    seq_pair_distComp = make_seq_pair_distComp(seq_comp_canddt, img)
+        # Add distance information to each component
+        seq_pair_distComp = make_seq_pair_distComp(seq_comp_canddt, img)
 
-    # Make section
-    section0, section1 = make_sections(seq_pair_distComp)
-    section = section0 + section1
-    
-    img_final = section * img
-    img_final0 = section0 * img
-    img_final1 = section1 * img
+        # Make section
+        section0, section1 = make_sections(seq_pair_distComp)
+        section = section0 + section1
+        
+        img_final = section * img
 
-    seq0_clipper = make_seq_clipper(section0)
-    seq1_clipper = make_seq_clipper(section1)
+        img_final0 = section0 * img
+        img_final1 = section1 * img
 
-    seq_section_final = make_seq_section_final(img_final0, seq0_clipper) + make_seq_section_final(img_final1, seq1_clipper)
-    save_seq_result(seq_section_final, fpath_dst)
+        seq0_clipper = make_seq_clipper(section0)
+        seq1_clipper = make_seq_clipper(section1)
 
-    # Step 4: Give paddings
-    # kernel_mr = np.ones((10,10), np.int32) # define structure for morphological reconstruction
-    # section_mr = ndimage.binary_dilation(section, structure=kernel_mr, iterations=10) # dilation
-    # section_mr = ndimage.binary_erosion(section_mr, structure=kernel_mr, iterations=5) # erosion
-    # img_final = section_mr*img
+        seq_section_final = make_seq_section_final(img_final0, seq0_clipper) + make_seq_section_final(img_final1, seq1_clipper)
+        iterate_save_result(seq_section_final, fpath_dst)
+        save_result(img_final, fpath_dst)
 
-    # Plots
+        # Step 4: Give paddings
+        # kernel_mr = np.ones((10,10), np.int32) # define structure for morphological reconstruction
+        # section_mr = ndimage.binary_dilation(section, structure=kernel_mr, iterations=10) # dilation
+        # section_mr = ndimage.binary_erosion(section_mr, structure=kernel_mr, iterations=5) # erosion
+        # img_final = section_mr*img
 
-    plt.figure(figsize=(8, 8))
+        # Plots
 
-    plt.subplot(331)
-    plt.imshow(kernel_ccl, cmap='gray')
-    plt.axis('off')
+            # plt.figure(figsize=(8, 8))
 
-    plt.subplot(332)
-    plt.imshow(closing, cmap='gray')
-    plt.axis('off')
+            # plt.subplot(331)
+            # plt.imshow(kernel_ccl, cmap='gray')
+            # plt.axis('off')
 
-    plt.subplot(333)
-    plt.imshow(img_bylabel, cmap='nipy_spectral')
-    plt.axis('off')
+            # plt.subplot(332)
+            # plt.imshow(closing, cmap='gray')
+            # plt.axis('off')
 
-    for i, section in enumerate(seq_section_final):
-        plt.subplot(334+i)
-        plt.imshow(section, cmap='gray')
-        plt.axis('off')
+            # plt.subplot(333)
+            # plt.imshow(img_bylabel, cmap='nipy_spectral')
+            # plt.axis('off')
 
-    plt.tight_layout()
-    plt.show()
+            # for i, section in enumerate(seq_section_final):
+            #     plt.subplot(334+i)
+            #     plt.imshow(section, cmap='gray')
+            #     plt.axis('off')
+
+            # plt.tight_layout()
+            # plt.show()
+
+    except (IndexError, ValueError):
+        print("Segmentation failed, move to the next file")
