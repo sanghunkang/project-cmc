@@ -14,8 +14,8 @@ from arxtectInceptionv1 import arxtect_inceptionv1
 
 
 FPATH_DATA_WEIGHTPRETRAINED = "../../../../dev-data/weightPretrained/googlenet.npy"
-FPATH_DATA_TRAIN =  "../../../../dev-data/pickle/data_train_th20.pickle"
-FPATH_DATA_TEST =  "../../../../dev-data/pickle/data_test_th20.pickle"
+FPATH_DATA_TRAIN =  "../../../../dev-data/pickle/data_train_th20_100.pickle"
+FPATH_DATA_TEST =  "../../../../dev-data/pickle/data_test_th20_100.pickle"
 
 # Define some functions... for whatever purposes
 def read_data(fpath):

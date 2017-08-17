@@ -41,7 +41,7 @@ def dir_to_pickle(dir_src, resolution, vec_class):
 		padding_h, padding_v= (size_img[0] - min_side)/2, (size_img[1] - min_side)/2
 		
 		img_crop = img.crop((padding_h, padding_v, size_img[0] - padding_h, size_img[1] - padding_v))
-		img_crop = img_crop.crop((img_crop.size[0]*0.15, img_crop.size[1]*0, img_crop.size[0]*0.85, img_crop.size[1]*0.70))
+		# img_crop = img_crop.crop((img_crop.size[0]*0.15, img_crop.size[1]*0, img_crop.size[0]*0.85, img_crop.size[1]*0.70))
 		# img_crop.show()
 
 
@@ -92,8 +92,8 @@ seq_rec_train_gt10, seq_rec_test_gt10 = divide_trainNtest(seq_rec_ltet10, 0.8)
 seq_rec_train = np.concatenate([seq_rec_train_ltet10, seq_rec_test_ltet10])
 seq_rec_test = np.concatenate([seq_rec_train_gt10, seq_rec_test_gt10])
 
-with open(DIR_DATA_PICKLE + "data_train_th20.pickle", 'wb') as handle:
+with open(DIR_DATA_PICKLE + "data_train_th20_100.pickle", 'wb') as handle:
 	pickle.dump(seq_rec_train, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-with open(DIR_DATA_PICKLE + "data_test_th20.pickle", 'wb') as handle:
+with open(DIR_DATA_PICKLE + "data_test_th20_100.pickle", 'wb') as handle:
 	pickle.dump(seq_rec_test, handle, protocol=pickle.HIGHEST_PROTOCOL)
