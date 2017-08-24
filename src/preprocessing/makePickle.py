@@ -92,8 +92,9 @@ seq_rec_train_gt10, seq_rec_test_gt10 = divide_trainNtest(seq_rec_ltet10, 0.8)
 seq_rec_train = np.concatenate([seq_rec_train_ltet10, seq_rec_test_ltet10])
 seq_rec_test = np.concatenate([seq_rec_train_gt10, seq_rec_test_gt10])
 
+# For compatibility reason, the highest protocol is not used.
 with open(DIR_DATA_PICKLE + "data_train_th20_100.pickle", 'wb') as handle:
-	pickle.dump(seq_rec_train, handle, protocol=pickle.HIGHEST_PROTOCOL)
+	pickle.dump(seq_rec_train, handle, protocol=2)
 
 with open(DIR_DATA_PICKLE + "data_test_th20_100.pickle", 'wb') as handle:
-	pickle.dump(seq_rec_test, handle, protocol=pickle.HIGHEST_PROTOCOL)
+	pickle.dump(seq_rec_test, handle, protocol=2)
