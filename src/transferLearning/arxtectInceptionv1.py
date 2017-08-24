@@ -31,7 +31,7 @@ def conv2ser(x, params_fc):
 	len_ftmap_end = int(shape_ftmap_end[1]*shape_ftmap_end[2]*shape_ftmap_end[3])
 	return tf.reshape(x, [-1, params_fc.get_shape().as_list()[0]])
 
-def fc1d(x, W, b, bn=False):
+def fc1d(x, W, b,  bn=False):
 	# FC layer wrapper, with bias, relu activation plus batch-normalisation if demanded
 	fc = tf.add(tf.matmul(x, W), b)
 	if bn == True: fc = tf.contrib.layers.batch_norm(fc)
@@ -88,7 +88,7 @@ def arxtect_inceptionv1(X, params_pre, params):
 
 	# Fully connected layer, training is done only for here
 	inception_5ap_1d = conv2ser(inception_5ap, params["fc6_W"])
-	fc6 = fc1d(inception_5ap_1d, params["fc6_W"], params["fc6_b"], bn=True)
+	fc6 = fc1d(inception_5ap_1d, params["fc6_W"], params["fc6_b"],  bn=True)
 	fc7 = fc1d(fc6, params["fc7_W"], params["fc7_b"], bn=True)
 	pred = fc1d(fc7, params["fc8_W"], params["fc8_b"], bn=True)
 	return pred
