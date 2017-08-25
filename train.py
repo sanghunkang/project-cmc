@@ -85,7 +85,7 @@ data_saved = {'var_epoch_saved': tf.Variable(0)}
 # Hyperparameters
 learning_rate = 0.0001
 num_itr = 100
-batch_size = 128
+batch_size = 96
 display_step = 10
 
 # tf Graph input
@@ -101,8 +101,10 @@ y = tf.placeholder(tf.float32, [None, num_class])
 with tf.device("/gpu:0"):
 	# Define loss, compute gradients
 	i = 0
-	X0 = tf.slice(X, [i*(batch_size//num_device), 0], [(i+1)*(batch_size//num_device), len_input])
-	y0 = tf.slice(y, [i*(batch_size//num_device), 0], [(i+1)*(batch_size//num_device), num_class])
+	X0, X1, X2 = tf.split(X, 3, 0)#tf.split(0, 3, X, name='split_X')
+	y0, y1, y2 = tf.split(y, 3, 0)
+	# X0 = tf.slice(X, [i*(batch_size//num_device), 0], [(i+1)*(batch_size//num_device), len_input])
+	# y0 = tf.slice(y, [i*(batch_size//num_device), 0], [(i+1)*(batch_size//num_device), num_class])
 
 	pred0 = arxtect_inceptionv1(X0, params_pre, params)
 	crossEntropy0 = tf.nn.softmax_cross_entropy_with_logits(logits=pred0, labels=y0)
@@ -112,8 +114,8 @@ with tf.device("/gpu:0"):
 with tf.device("/gpu:1"):
 	# Define loss, compute gradients
 	i = 1
-	X1 = tf.slice(X, [i * (batch_size // num_device), 0], [(i+1)*(batch_size//num_device), len_input])
-	y1 = tf.slice(y, [i * (batch_size // num_device), 0], [(i+1)*(batch_size//num_device), num_class])
+	# X1 = tf.slice(X, [i * (batch_size // num_device), 0], [(i+1)*(batch_size//num_device), len_input])
+	# y1 = tf.slice(y, [i * (batch_size // num_device), 0], [(i+1)*(batch_size//num_device), num_class])
 
 	pred1 = arxtect_inceptionv1(X1, params_pre, params)
 	crossEntropy1 = tf.nn.softmax_cross_entropy_with_logits(logits=pred1, labels=y1)
@@ -123,8 +125,8 @@ with tf.device("/gpu:1"):
 with tf.device("/gpu:2"):
 	# Define loss, compute gradients
 	i = 2
-	X2 = tf.slice(X, [i * (batch_size // num_device), 0], [-1, len_input])
-	y2 = tf.slice(y, [i * (batch_size // num_device), 0], [-1, num_class])
+	# X2 = tf.slice(X, [i * (batch_size // num_device), 0], [-1, len_input])
+	# y2 = tf.slice(y, [i * (batch_size // num_device), 0], [-1, num_class])
 
 	pred2 = arxtect_inceptionv1(X2, params_pre, params)
 	crossEntropy2 = tf.nn.softmax_cross_entropy_with_logits(logits=pred2, labels=y2)
