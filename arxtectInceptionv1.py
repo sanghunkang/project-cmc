@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 # Import built-in packages
-import _pickle as cPickle
 
 # Import external packages
 import numpy as np

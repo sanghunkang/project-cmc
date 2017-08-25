@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # Import built-in packages
-import _pickle as cPickle
+import pickle as cPickle
 import time
 
 # Import external packages
@@ -13,7 +13,7 @@ from params import params
 from arxtectInceptionv1 import arxtect_inceptionv1
 
 
-FPATH_DATA_WEIGHTPRETRAINED = "../../dev-data/weightPretrained/googlenet.npy"
+FPATH_DATA_WEIGHTPRETRAINED = "../../dev-data/weight-pretrained/googlenet.npy"
 FPATH_DATA_TRAIN =  "../../dev-data/project-cmc/pickle/test_train.pickle"
 FPATH_DATA_TEST =  "../../dev-data/project-cmc/pickle/test_validation.pickle"
 
