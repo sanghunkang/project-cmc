@@ -85,7 +85,7 @@ data_saved = {'var_epoch_saved': tf.Variable(0)}
 # Hyperparameters
 learning_rate = 0.0001
 num_itr = 100
-batch_size = 256
+batch_size = 128
 display_step = 10
 
 # tf Graph input
@@ -99,8 +99,8 @@ y = tf.placeholder(tf.float32, [None, num_class])
 # y1 = tf.placeholder(tf.float32, [None, num_class])
 
 with tf.device("/gpu:6"):
-	y0, y1, y2, y3 = tf.split(y, 4, 0)
-	X0, X1, X2, X3 = tf.split(X, 4, 0)  # tf.split(0, 3, X, name='split_X')
+	y0, y1 = tf.split(y, 2, 0)
+	X0, X1 = tf.split(X, 2, 0)  # tf.split(0, 3, X, name='split_X')
 	# print(X0, X3)
 
 with tf.device("/gpu:0"):
@@ -117,30 +117,30 @@ with tf.device("/gpu:1"):
 	cost1 = tf.reduce_mean(crossEntropy1)
 	grad1 = tf.train.AdamOptimizer(learning_rate=learning_rate).compute_gradients(cost1)
 
-with tf.device("/gpu:2"):
-	# Define loss, compute gradients
-	pred2 = arxtect_inceptionv1(X2, params_pre, params)
-	crossEntropy2 = tf.nn.softmax_cross_entropy_with_logits(logits=pred2, labels=y2)
-	cost2 = tf.reduce_mean(crossEntropy2)
-	grad2 = tf.train.AdamOptimizer(learning_rate=learning_rate).compute_gradients(cost2)
+# with tf.device("/gpu:2"):
+# 	# Define loss, compute gradients
+# 	pred2 = arxtect_inceptionv1(X2, params_pre, params)
+# 	crossEntropy2 = tf.nn.softmax_cross_entropy_with_logits(logits=pred2, labels=y2)
+# 	cost2 = tf.reduce_mean(crossEntropy2)
+# 	grad2 = tf.train.AdamOptimizer(learning_rate=learning_rate).compute_gradients(cost2)
 
-with tf.device("/gpu:3"):
-	# Define loss, compute gradients
-	pred3 = arxtect_inceptionv1(X3, params_pre, params)
-	crossEntropy3 = tf.nn.softmax_cross_entropy_with_logits(logits=pred1, labels=y3)
-	cost3 = tf.reduce_mean(crossEntropy3)
-	grad3 = tf.train.AdamOptimizer(learning_rate=learning_rate).compute_gradients(cost3)
+# with tf.device("/gpu:3"):
+# 	# Define loss, compute gradients
+# 	pred3 = arxtect_inceptionv1(X3, params_pre, params)
+# 	crossEntropy3 = tf.nn.softmax_cross_entropy_with_logits(logits=pred3, labels=y3)
+# 	cost3 = tf.reduce_mean(crossEntropy3)
+# 	grad3 = tf.train.AdamOptimizer(learning_rate=learning_rate).compute_gradients(cost3)
 
 with tf.device("/gpu:7"):
 	# Reduce
-	grad = grad0 + grad1 + grad2  + grad3
+	grad = grad0 + grad1# + grad2  + grad3
 	optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).apply_gradients(grad)
 
 	# Evaluate model
-	pred = tf.concat([pred0, pred1, pred2, pred3], axis=0)
+	pred = tf.concat([pred0, pred1], axis=0)
 	correct_pred = tf.equal(tf.argmax(pred, 1), tf.argmax(y, 1))
 	accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
-	cost = tf.reduce_mean([crossEntropy0, crossEntropy1, crossEntropy2, crossEntropy3])
+	cost = tf.reduce_mean([crossEntropy0, crossEntropy1])
 
 # Integrate tf summaries
 tf.summary.scalar('cost', cost)
