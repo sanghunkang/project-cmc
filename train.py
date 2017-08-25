@@ -26,7 +26,7 @@ def read_data(fpath):
 		data 		: np.array
 	"""
 	with open(fpath, "rb") as fo:
-		data_train = cPickle.load(fo, encoding="bytes")
+		data_train = cPickle.load(fo)#, encoding="bytes")
 		np.random.shuffle(data_train)
 	return data_train
 
@@ -85,7 +85,7 @@ data_saved = {'var_epoch_saved': tf.Variable(0)}
 # Hyperparameters
 learning_rate = 0.0001
 num_itr = 100
-batch_size = 96
+batch_size = 256
 display_step = 10
 
 # tf Graph input
@@ -102,6 +102,7 @@ with tf.device("/gpu:0"):
 	# Define loss, compute gradients
 	i = 0
 	X0, X1, X2, X3 = tf.split(X, 4, 0)#tf.split(0, 3, X, name='split_X')
+	print(X0, X3)
 	y0, y1, y2, y3 = tf.split(y, 4, 0)
 
 	pred0 = arxtect_inceptionv1(X0, params_pre, params)
@@ -131,10 +132,10 @@ with tf.device("/gpu:3"):
 	# Define loss, compute gradients
 	i = 3
 
-	pred3 = arxtect_inceptionv1(X1, params_pre, params)
-	crossEntropy1 = tf.nn.softmax_cross_entropy_with_logits(logits=pred1, labels=y3)
-	cost3 = tf.reduce_mean(crossEntropy1)
-	grad3 = tf.train.AdamOptimizer(learning_rate=learning_rate).compute_gradients(cost1)
+	pred3 = arxtect_inceptionv1(X3, params_pre, params)
+	crossEntropy3 = tf.nn.softmax_cross_entropy_with_logits(logits=pred1, labels=y3)
+	cost3 = tf.reduce_mean(crossEntropy3)
+	grad3 = tf.train.AdamOptimizer(learning_rate=learning_rate).compute_gradients(cost3)
 
 	# Reduce
 	grad = grad0 + grad1 + grad2  + grad3
