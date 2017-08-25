@@ -13,9 +13,9 @@ from params import params
 from arxtectInceptionv1 import arxtect_inceptionv1
 
 
-FPATH_DATA_WEIGHTPRETRAINED = "../../../../dev-data/weightPretrained/googlenet.npy"
-FPATH_DATA_TRAIN =  "../../../../dev-data/newnewnew/test_train.pickle"
-FPATH_DATA_TEST =  "../../../../dev-data/newnewnew/test_validation.pickle"
+FPATH_DATA_WEIGHTPRETRAINED = "../../dev-data/weightPretrained/googlenet.npy"
+FPATH_DATA_TRAIN =  "../../dev-data/project-cmc/pickle/test_train.pickle"
+FPATH_DATA_TEST =  "../../dev-data/project-cmc/pickle/test_validation.pickle"
 
 # Define some functions... for whatever purposes
 def read_data(fpath):
@@ -55,10 +55,7 @@ def feed_dict(data, batch_size, len_input):
 					: dict, {X: np.array of shape(len_input, batch_size), y: np.array of shape(num_class, batch_size)}
 	"""
 	batch = data[np.random.choice(data.shape[0], size=batch_size,  replace=True)]
-	return {X0: batch[:batch_size//2, :len_input],
-			X1: batch[batch_size//2:, :len_input],
-			y0: batch[:batch_size//2, len_input:],
-			y1: batch[batch_size//2:, len_input:]}
+	return {X: batch[:,:len_input], y: batch[:,len_input:]}
 
 # def merge_gradients(grad0, grad1):
 # 	grad_merged = {}
@@ -87,48 +84,62 @@ data_saved = {'var_epoch_saved': tf.Variable(0)}
 # BUILDING THE COMPUTATIONAL GRAPH
 # Hyperparameters
 learning_rate = 0.0001
-num_itr = 500
+num_itr = 100
 batch_size = 128
 display_step = 10
 
 # tf Graph input
 len_input = 448*448*3
 num_class = 2 # Normal or Abnormal
+num_device = 2
 
-X0 = tf.placeholder(tf.float32, [None, len_input])
-y0 = tf.placeholder(tf.float32, [None, num_class])
-X1 = tf.placeholder(tf.float32, [None, len_input])
-y1 = tf.placeholder(tf.float32, [None, num_class])
+X = tf.placeholder(tf.float32, [None, len_input])
+y = tf.placeholder(tf.float32, [None, num_class])
+# X1 = tf.placeholder(tf.float32, [None, len_input])
+# y1 = tf.placeholder(tf.float32, [None, num_class])
 
 with tf.device("/gpu:0"):
 	# Define loss, compute gradients
+	i = 0
+	X0 = tf.slice(X, [i*(batch_size//num_device), 0], [(i+1)*(batch_size//num_device), len_input])
+	y0 = tf.slice(y, [i*(batch_size//num_device), 0], [(i+1)*(batch_size//num_device), num_class])
+
 	pred0 = arxtect_inceptionv1(X0, params_pre, params)
 	crossEntropy0 = tf.nn.softmax_cross_entropy_with_logits(logits=pred0, labels=y0)
 	cost0 = tf.reduce_mean(crossEntropy0)
 	grad0 = tf.train.AdamOptimizer(learning_rate=learning_rate).compute_gradients(cost0)
 
-	# Evaluate
-	correct_pred0 = tf.equal(tf.argmax(pred0, 1), tf.argmax(y0, 1))
-
 with tf.device("/gpu:1"):
 	# Define loss, compute gradients
+	i = 1
+	X1 = tf.slice(X, [i * (batch_size // num_device), 0], [(i+1)*(batch_size//num_device), len_input])
+	y1 = tf.slice(y, [i * (batch_size // num_device), 0], [(i+1)*(batch_size//num_device), num_class])
+
 	pred1 = arxtect_inceptionv1(X1, params_pre, params)
 	crossEntropy1 = tf.nn.softmax_cross_entropy_with_logits(logits=pred1, labels=y1)
 	cost1 = tf.reduce_mean(crossEntropy1)
 	grad1 = tf.train.AdamOptimizer(learning_rate=learning_rate).compute_gradients(cost1)
 
-	# Evaluate
-	correct_pred1 = tf.equal(tf.argmax(pred1, 1), tf.argmax(y1, 1))
+with tf.device("/gpu:2"):
+	# Define loss, compute gradients
+	i = 2
+	X2 = tf.slice(X, [i * (batch_size // num_device), 0], [-1, len_input])
+	y2 = tf.slice(y, [i * (batch_size // num_device), 0], [-1, num_class])
 
-	# Merging computed gradients and cost (hopefully)
-	grad = grad0 + grad1
-	optimizer1 = tf.train.AdamOptimizer(learning_rate=learning_rate).apply_gradients(grad)
+	pred2 = arxtect_inceptionv1(X2, params_pre, params)
+	crossEntropy2 = tf.nn.softmax_cross_entropy_with_logits(logits=pred2, labels=y2)
+	cost2 = tf.reduce_mean(crossEntropy2)
+	grad2 = tf.train.AdamOptimizer(learning_rate=learning_rate).compute_gradients(cost2)
 
-	cost = 0.5*(cost0 + cost1)
+	# Reduce
+	grad = grad0 + grad1 + grad2
+	optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).apply_gradients(grad)
 
-# Evaluate model
-correct_pred = tf.concat([correct_pred0, correct_pred1], axis=0)
-accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
+	# Evaluate model
+	pred = tf.concat([pred0, pred1, pred2], axis=0)
+	correct_pred = tf.equal(tf.argmax(pred, 1), tf.argmax(y, 1))
+	accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
+	cost = tf.reduce_mean([crossEntropy0, crossEntropy2])
 
 # Integrate tf summaries
 tf.summary.scalar('cost', cost)
@@ -172,7 +183,7 @@ with tf.Session(config=config) as sess:
 	t0 = time.time()
 	for epoch in range(epoch_saved, epoch_saved + num_itr):
 		# Run optimization op (backprop)
-		summary, acc_train, loss_train, _ = sess.run([merged, accuracy, cost, optimizer1], feed_dict=feed_dict(data_train, batch_size, len_input))
+		summary, acc_train, loss_train, _ = sess.run([merged, accuracy, cost, optimizer], feed_dict=feed_dict(data_train, batch_size, len_input))
 		train_writer.add_summary(summary, epoch)
 
 		summary, acc_test = sess.run([merged, accuracy], feed_dict=feed_dict(data_test, batch_size, len_input))
