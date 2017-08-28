@@ -32,9 +32,9 @@ def check_dir(fpath):
 arr_fpath_src = [os.path.join(dir_src, str(df["PID"][i]) + ".bmp") for i in range(df.shape[0])]
 arr_fpath_dst = [os.path.join(dir_dst, "{}/{}.bmp".format(df["TYPE1"][i][0], df["PID"][i])) for i in range(df.shape[0])]
 
-for i in range (df.shape[0]):
+for fpath_src, fpath_dst in zip(arr_fpath_src, arr_fpath_dst):
 	try:
-		check_dir(arr_fpath_dst[i])
-		shutil.copy(arr_fpath_src[i], arr_fpath_dst[i])
+		check_dir(fpath_dst)
+		shutil.copy(fpath_src, fpath_dst)
 	except FileNotFoundError:
 		print("Not if the reference file")
