@@ -5,6 +5,7 @@
 import pickle as cPickle
 import time
 
+from functools import reduce
 # Import external packages
 import numpy as np
 import tensorflow as tf
@@ -84,7 +85,7 @@ data_saved = {'var_epoch_saved': tf.Variable(0)}
 # BUILDING THE COMPUTATIONAL GRAPH
 # Hyperparameters
 learning_rate = 0.0001
-num_itr = 100
+num_itr = 300
 batch_size = 128
 display_step = 10
 
@@ -105,10 +106,10 @@ with tf.device("/gpu:0"):
 
 	stack_X = tf.split(X, num_device, 0)
 	stack_y = tf.split(y, num_device, 0)
-	stack_pred=[]
-	stack_xentropy=[]
-	stack_cost=[]
-	stack_grad=[]
+	stack_pred=[0]*num_device
+	stack_xentropy=[0]*num_device
+	stack_cost=[0]*num_device
+	stack_grad=[0]*num_device
 for i in range(num_device):
 
 	with tf.device("/gpu:{0}".format(i)):
@@ -117,31 +118,11 @@ for i in range(num_device):
 		stack_xentropy[i] = tf.nn.softmax_cross_entropy_with_logits(logits=stack_pred[i], labels=stack_y[i])
 		stack_cost[i] = tf.reduce_mean(stack_xentropy[i])
 		stack_grad[i] = tf.train.AdamOptimizer(learning_rate=learning_rate).compute_gradients(stack_cost[i])
-
-# with tf.device("/gpu:1"):
-# 	# Define loss, compute gradients
-# 	pred1 = arxtect_inceptionv1(X1, params_pre, params)
-# 	crossEntropy1 = tf.nn.softmax_cross_entropy_with_logits(logits=pred1, labels=y1)
-# 	cost1 = tf.reduce_mean(crossEntropy1)
-# 	grad1 = tf.train.AdamOptimizer(learning_rate=learning_rate).compute_gradients(cost1)
-
-# with tf.device("/gpu:2"):
-# 	# Define loss, compute gradients
-#  	pred2 = arxtect_inceptionv1(X2, params_pre, params)
-#  	crossEntropy2 = tf.nn.softmax_cross_entropy_with_logits(logits=pred2, labels=y2)
-#  	cost2 = tf.reduce_mean(crossEntropy2)
-#  	grad2 = tf.train.AdamOptimizer(learning_rate=learning_rate).compute_gradients(cost2)
-
-# with tf.device("/gpu:3"):
-#  	# Define loss, compute gradients
-#  	pred3 = arxtect_inceptionv1(X3, params_pre, params)
-#  	crossEntropy3 = tf.nn.softmax_cross_entropy_with_logits(logits=pred3, labels=y3)
-#  	cost3 = tf.reduce_mean(crossEntropy3)
-#  	grad3 = tf.train.AdamOptimizer(learning_rate=learning_rate).compute_gradients(cost3)
-
-with tf.device("/gpu:7"):
-	# Reduce
-	grad = stack_grad[0] + stack_grad[1] + stack_grad[2]  + stack_grad[3]
+	
+with tf.device("/gpu:{0}".format(i)):
+	#print(stack_grad[0])
+	grad = reduce(lambda x0, x1: x0 + x1, stack_grad) 
+	#grad = stack_grad[0] + stack_grad[1]
 	optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).apply_gradients(grad)
 
 	# Evaluate model
