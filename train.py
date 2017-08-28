@@ -91,56 +91,64 @@ display_step = 10
 # tf Graph input
 len_input = 448*448*3
 num_class = 2 # Normal or Abnormal
-num_device = 2
+num_device = 4
 
 X = tf.placeholder(tf.float32, [None, len_input])
 y = tf.placeholder(tf.float32, [None, num_class])
 # X1 = tf.placeholder(tf.float32, [None, len_input])
 # y1 = tf.placeholder(tf.float32, [None, num_class])
 
-with tf.device("/gpu:6"):
-	y0, y1, y2, y3 = tf.split(y, 4, 0)
-	X0, X1, X2, X3 = tf.split(X, 4, 0)  # tf.split(0, 3, X, name='split_X')
+with tf.device("/gpu:0"):
+	# y0, y1, y2, y3 = tf.split(y, 4, 0)
+	# X0, X1, X2, X3 = tf.split(X, 4, 0)  # tf.split(0, 3, X, name='split_X')
 	# print(X0, X3)
 
-with tf.device("/gpu:0"):
-	# Define loss, compute gradients
-	pred0 = arxtect_inceptionv1(X0, params_pre, params)
-	crossEntropy0 = tf.nn.softmax_cross_entropy_with_logits(logits=pred0, labels=y0)
-	cost0 = tf.reduce_mean(crossEntropy0)
-	grad0 = tf.train.AdamOptimizer(learning_rate=learning_rate).compute_gradients(cost0)
+	stack_X = tf.split(X, num_device, 0)
+	stack_y = tf.split(y, num_device, 0)
+	stack_pred=[]
+	stack_xentropy=[]
+	stack_cost=[]
+	stack_grad=[]
+for i in range(num_device):
 
-with tf.device("/gpu:1"):
-	# Define loss, compute gradients
-	pred1 = arxtect_inceptionv1(X1, params_pre, params)
-	crossEntropy1 = tf.nn.softmax_cross_entropy_with_logits(logits=pred1, labels=y1)
-	cost1 = tf.reduce_mean(crossEntropy1)
-	grad1 = tf.train.AdamOptimizer(learning_rate=learning_rate).compute_gradients(cost1)
+	with tf.device("/gpu:{0}".format(i)):
+		# Define loss, compute gradients
+		stack_pred[i] = arxtect_inceptionv1(stack_X[i], params_pre, params)
+		stack_xentropy[i] = tf.nn.softmax_cross_entropy_with_logits(logits=stack_pred[i], labels=stack_y[i])
+		stack_cost[i] = tf.reduce_mean(stack_xentropy[i])
+		stack_grad[i] = tf.train.AdamOptimizer(learning_rate=learning_rate).compute_gradients(stack_cost[i])
 
-with tf.device("/gpu:2"):
-	# Define loss, compute gradients
- 	pred2 = arxtect_inceptionv1(X2, params_pre, params)
- 	crossEntropy2 = tf.nn.softmax_cross_entropy_with_logits(logits=pred2, labels=y2)
- 	cost2 = tf.reduce_mean(crossEntropy2)
- 	grad2 = tf.train.AdamOptimizer(learning_rate=learning_rate).compute_gradients(cost2)
+# with tf.device("/gpu:1"):
+# 	# Define loss, compute gradients
+# 	pred1 = arxtect_inceptionv1(X1, params_pre, params)
+# 	crossEntropy1 = tf.nn.softmax_cross_entropy_with_logits(logits=pred1, labels=y1)
+# 	cost1 = tf.reduce_mean(crossEntropy1)
+# 	grad1 = tf.train.AdamOptimizer(learning_rate=learning_rate).compute_gradients(cost1)
 
-with tf.device("/gpu:3"):
- 	# Define loss, compute gradients
- 	pred3 = arxtect_inceptionv1(X3, params_pre, params)
- 	crossEntropy3 = tf.nn.softmax_cross_entropy_with_logits(logits=pred3, labels=y3)
- 	cost3 = tf.reduce_mean(crossEntropy3)
- 	grad3 = tf.train.AdamOptimizer(learning_rate=learning_rate).compute_gradients(cost3)
+# with tf.device("/gpu:2"):
+# 	# Define loss, compute gradients
+#  	pred2 = arxtect_inceptionv1(X2, params_pre, params)
+#  	crossEntropy2 = tf.nn.softmax_cross_entropy_with_logits(logits=pred2, labels=y2)
+#  	cost2 = tf.reduce_mean(crossEntropy2)
+#  	grad2 = tf.train.AdamOptimizer(learning_rate=learning_rate).compute_gradients(cost2)
+
+# with tf.device("/gpu:3"):
+#  	# Define loss, compute gradients
+#  	pred3 = arxtect_inceptionv1(X3, params_pre, params)
+#  	crossEntropy3 = tf.nn.softmax_cross_entropy_with_logits(logits=pred3, labels=y3)
+#  	cost3 = tf.reduce_mean(crossEntropy3)
+#  	grad3 = tf.train.AdamOptimizer(learning_rate=learning_rate).compute_gradients(cost3)
 
 with tf.device("/gpu:7"):
 	# Reduce
-	grad = grad0 + grad1 + grad2  + grad3
+	grad = stack_grad[0] + stack_grad[1] + stack_grad[2]  + stack_grad[3]
 	optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).apply_gradients(grad)
 
 	# Evaluate model
-	pred = tf.concat([pred0, pred1, pred2, pred3], axis=0)
+	pred = tf.concat(stack_pred, axis=0)
 	correct_pred = tf.equal(tf.argmax(pred, 1), tf.argmax(y, 1))
 	accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
-	cost = tf.reduce_mean([crossEntropy0, crossEntropy1, crossEntropy2, crossEntropy3])
+	cost = tf.reduce_mean(stack_xentropy)
 
 # Integrate tf summaries
 tf.summary.scalar('cost', cost)
