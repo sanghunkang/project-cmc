@@ -28,6 +28,7 @@ args = parser.parse_args()
 def generate_seq_fpath(dir_src, c):
 	dir_src_abs = os.path.join(dir_src, c)
 	seq_fpath = os.listdir(dir_src_abs)
+	random.shuffle(seq_fpath)
 	return [os.path.join(dir_src_abs, fpath) for fpath in seq_fpath if fpath.split(".")[-1].lower() in EXT_IMAGE]
 
 def generate_seq_seq_fpath(dir_src, classlabel, sample_size):

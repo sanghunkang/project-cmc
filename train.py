@@ -118,58 +118,63 @@ tf.summary.scalar('accuracy', accuracy)
 merged = tf.summary.merge_all()
 
 # RUNNING THE COMPUTATIONAL GRAPH
-# Define saver
-saver = tf.train.Saver()
+def main():
 
-# Configure memory growth
-config = tf.ConfigProto()
-config.gpu_options.allow_growth = True
+	# Define saver
+	saver = tf.train.Saver()
 
-# Run session
-with tf.Session(config=config) as sess:
-	data_train = read_data(FPATH_DATA_TRAIN)
-	data_test = read_data(FPATH_DATA_TEST)
+	# Configure memory growth
+	config = tf.ConfigProto()
+	config.gpu_options.allow_growth = True
 
-	summaries_dir = './logs'
-	train_writer = tf.summary.FileWriter(summaries_dir + '/train', sess.graph)
-	test_writer = tf.summary.FileWriter(summaries_dir + '/test')
+	# Run session
+	with tf.Session(config=config) as sess:
+		data_train = read_data(FPATH_DATA_TRAIN)
+		data_test = read_data(FPATH_DATA_TEST)
 
-	# Initialise the variables and run
-	init = tf.global_variables_initializer()
-	sess.run(init)
+		summaries_dir = './logs'
+		train_writer = tf.summary.FileWriter(summaries_dir + '/train', sess.graph)
+		test_writer = tf.summary.FileWriter(summaries_dir + '/test')
 
-	# For train
-	try:
-		saver.restore(sess, './modelckpt/inception500.ckpt')
-		print('Model restored')
-		epoch_saved = data_saved['var_epoch_saved'].eval()
-	except tf.errors.NotFoundError:
-		print('No saved model found')
-		epoch_saved = 0
-	except tf.errors.InvalidArgumentError:
-		print('Model structure has change. Rebuild model')
-		epoch_saved = 0
+		# Initialise the variables and run
+		init = tf.global_variables_initializer()
+		sess.run(init)
 
-	# Training cycle
-	t0 = time.time()
-	for epoch in range(epoch_saved, epoch_saved + num_itr):
-		# Run optimization op (backprop)
-		summary, acc_train, loss_train, _ = sess.run([merged, accuracy, cost, optimizer], feed_dict=feed_dict(data_train, batch_size, len_input))
-		train_writer.add_summary(summary, epoch)
+		# For train
+		try:
+			saver.restore(sess, './modelckpt/inception500.ckpt')
+			print('Model restored')
+			epoch_saved = data_saved['var_epoch_saved'].eval()
+		except tf.errors.NotFoundError:
+			print('No saved model found')
+			epoch_saved = 0
+		except tf.errors.InvalidArgumentError:
+			print('Model structure has change. Rebuild model')
+			epoch_saved = 0
 
-		summary, acc_test = sess.run([merged, accuracy], feed_dict=feed_dict(data_test, batch_size, len_input))
-		test_writer.add_summary(summary, epoch)
-		print("Accuracy at step {0}: {1}".format(epoch, acc_test))
+		# Training cycle
+		t0 = time.time()
+		for epoch in range(epoch_saved, epoch_saved + num_itr):
+			# Run optimization op (backprop)
+			summary, acc_train, loss_train, _ = sess.run([merged, accuracy, cost, optimizer], feed_dict=feed_dict(data_train, batch_size, len_input))
+			train_writer.add_summary(summary, epoch)
 
-		if epoch % display_step == 0:
-			print("Epoch {0}, Minibatch Loss= {1:.6f}, Train Accuracy= {2:.5f}".format(epoch, loss_train, acc_train))
+			summary, acc_test = sess.run([merged, accuracy], feed_dict=feed_dict(data_test, batch_size, len_input))
+			test_writer.add_summary(summary, epoch)
+			print("Accuracy at step {0}: {1}".format(epoch, acc_test))
 
-	print("Optimisation Finished!")
-	t1 = time.time()
-	print(t1-t0)
+			if epoch % display_step == 0:
+				print("Epoch {0}, Minibatch Loss= {1:.6f}, Train Accuracy= {2:.5f}".format(epoch, loss_train, acc_train))
 
-	# Save the variables
-	epoch_new = epoch_saved + num_itr
-	sess.run(data_saved["var_epoch_saved"].assign(epoch_new))
-	fpath_ckpt = saver.save(sess, "./modelckpt/inception{0}.ckpt".format(epoch_new))
-	print("Model saved in file: {0}".format(fpath_ckpt))
+		print("Optimisation Finished!")
+		t1 = time.time()
+		print(t1-t0)
+
+		# Save the variables
+		epoch_new = epoch_saved + num_itr
+		sess.run(data_saved["var_epoch_saved"].assign(epoch_new))
+		fpath_ckpt = saver.save(sess, "./modelckpt/inception{0}.ckpt".format(epoch_new))
+		print("Model saved in file: {0}".format(fpath_ckpt))
+
+if __name__ == "__main__":
+	app.run()
