@@ -14,9 +14,9 @@ from params import params
 from arxtectInceptionv1 import arxtect_inceptionv1
 
 
-FPATH_DATA_WEIGHTPRETRAINED = "../../dev-data/weight-pretrained/googlenet.npy"
-FPATH_DATA_TRAIN =  "../../dev-data/project-cmc/pickle/test_train.pickle"
-FPATH_DATA_TEST =  "../../dev-data/project-cmc/pickle/test_validation.pickle"
+# FPATH_DATA_WEIGHTPRETRAINED = "../../dev-data/weight-pretrained/googlenet.npy"
+# FPATH_DATA_TRAIN =  "../../dev-data/project-cmc/pickle/test_train.pickle"
+# FPATH_DATA_TEST =  "../../dev-data/project-cmc/pickle/test_validation.pickle"
 
 # Define some functions... for whatever purposes
 def read_data(fpath):
@@ -59,6 +59,13 @@ def feed_dict(data, batch_size, len_input):
 	return {X: batch[:,:len_input], y: batch[:,len_input:]}
 
 # Inception-v1
+FPATH_DATA_WEIGHTPRETRAINED = "../../dev-data/weight-pretrained/googlenet.npy"
+FPATH_DATA_TRAIN =  "../../dev-data/project-cmc/pickle/test_train.pickle"
+FPATH_DATA_TEST =  "../../dev-data/project-cmc/pickle/test_validation.pickle"
+
+flags.DEFINE_string("fpath_data_train", "../../dev-data/project-cmc/pickle/test_train.pickle", "The directory to save the model files in.")
+flags.DEFINE_string("fpath_data_validation", "../../dev-data/project-cmc/pickle/validation_train.pickle", "The directory to save the model files in.")
+
 print("++++++++++ Inception-v1 ++++++++++")
 dict_lyr = np.load(FPATH_DATA_WEIGHTPRETRAINED, encoding='latin1').item() # return dict
 params_pre = reformat_params(dict_lyr)
@@ -129,8 +136,8 @@ def main():
 
 	# Run session
 	with tf.Session(config=config) as sess:
-		data_train = read_data(FPATH_DATA_TRAIN)
-		data_test = read_data(FPATH_DATA_TEST)
+		data_train = read_data(FLAGS.fpath_data_train)
+		data_test = read_data(FLAGS.fpath_data_validation)
 
 		summaries_dir = './logs'
 		train_writer = tf.summary.FileWriter(summaries_dir + '/train', sess.graph)
