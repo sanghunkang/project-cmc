@@ -58,29 +58,13 @@ def feed_dict(data, batch_size, len_input):
 	batch = data[np.random.choice(data.shape[0], size=batch_size,  replace=True)]
 	return {X: batch[:,:len_input], y: batch[:,len_input:]}
 
-# def merge_gradients(grad0, grad1):
-# 	grad_merged = {}
-# 	for i, pair in enumerate(grad0): grad0[i] = tf.add grad0[i][0] + grad1[i][0]
-# 		grad_merged[a] = 0.5
-
-
 # Inception-v1
 print("++++++++++ Inception-v1 ++++++++++")
 dict_lyr = np.load(FPATH_DATA_WEIGHTPRETRAINED, encoding='latin1').item() # return dict
 params_pre = reformat_params(dict_lyr)
 
 data_saved = {'var_epoch_saved': tf.Variable(0)}
-# params = {
-# 	# len_ftmap_end = int(shape_ftmap_end[1]*shape_ftmap_end[2]*shape_ftmap_end[3])
-# 	'fc6_W': tf.Variable(tf.random_normal([4096, 4096]), name='fc6_W'),
-# 	'fc6_b': tf.Variable(tf.random_normal([4096]), name='fc6_b'),
-#
-# 	'fc7_W': tf.Variable(tf.random_normal([4096, 4096]), name='fc7_W'),
-# 	'fc7_b': tf.Variable(tf.random_normal([4096]), name='fc7_b'),
-#
-# 	'fc8_W': tf.Variable(tf.random_normal([4096, 2]), name='fc8_W'),
-# 	'fc8_b': tf.Variable(tf.random_normal([2]), name='fc8_b'), # 2 outputs (class prediction)
-# }
+
 
 # BUILDING THE COMPUTATIONAL GRAPH
 # Hyperparameters
@@ -96,13 +80,10 @@ num_device = 4
 
 X = tf.placeholder(tf.float32, [None, len_input])
 y = tf.placeholder(tf.float32, [None, num_class])
-# X1 = tf.placeholder(tf.float32, [None, len_input])
-# y1 = tf.placeholder(tf.float32, [None, num_class])
 
 with tf.device("/gpu:0"):
 	# y0, y1, y2, y3 = tf.split(y, 4, 0)
 	# X0, X1, X2, X3 = tf.split(X, 4, 0)  # tf.split(0, 3, X, name='split_X')
-	# print(X0, X3)
 
 	stack_X = tf.split(X, num_device, 0)
 	stack_y = tf.split(y, num_device, 0)

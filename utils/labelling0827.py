@@ -7,7 +7,6 @@ import argparse, os, sys, shutil
 import pandas as pd
 
 parser = argparse.ArgumentParser()
-# parser.add_argument("echo", help="Example: python labelling0827.py -s /dir/of/images -d dir/of/images-sorted -f /path/to/csv")
 parser.add_argument("-s", "--src", type=str, help="Directory where original data are stored.")
 parser.add_argument("-d", "--dst", type=str, help="Directory where original data will be copied into its subdirectories according to their classfications.")
 parser.add_argument("-r", "--ref", type=str, help="path to .csv file where relevant data is located.")
@@ -19,7 +18,7 @@ fpath_ref = ""
 
 if args.src: dir_src = args.src
 if args.dst: dir_dst = args.dst
-if args.reference: fpath_ref = args.reference
+if args.ref: fpath_ref = args.ref
 
 # Check on which system the programme is running
 print(sys.platform)
@@ -33,8 +32,10 @@ arr_fpath_src = [os.path.join(dir_src, str(df["PID"][i]) + ".bmp") for i in rang
 arr_fpath_dst = [os.path.join(dir_dst, "{}/{}.bmp".format(df["TYPE1"][i][0], df["PID"][i])) for i in range(df.shape[0])]
 
 for fpath_src, fpath_dst in zip(arr_fpath_src, arr_fpath_dst):
+	print(fpath_src)
 	try:
 		check_dir(fpath_dst)
 		shutil.copy(fpath_src, fpath_dst)
+		print("done")
 	except FileNotFoundError:
 		print("Not if the reference file")
