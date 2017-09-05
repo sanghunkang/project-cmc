@@ -57,7 +57,7 @@ def inception_module(tsr_X, name_module, params_pre):
 	return inception_concat
 
 def arxtect_inceptionv1(X, params_pre, params):
-	X_reshaped = tf.reshape(X, shape=[-1, 448, 448, 3])
+	X_reshaped = tf.reshape(X, shape=[-1, 224, 224, 3])
 
 	# Convolution and max pooling(down-sampling) Layers
 	# Convolution parameters are from pretrained data
