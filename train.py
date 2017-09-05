@@ -10,6 +10,7 @@ from functools import reduce
 import numpy as np
 import tensorflow as tf
 
+from tensorflow import app, flags
 from params import params
 from arxtectInceptionv1 import arxtect_inceptionv1
 
@@ -125,7 +126,7 @@ tf.summary.scalar('accuracy', accuracy)
 merged = tf.summary.merge_all()
 
 # RUNNING THE COMPUTATIONAL GRAPH
-def main():
+def main(unused_argv):
 
 	# Define saver
 	saver = tf.train.Saver()
@@ -136,8 +137,8 @@ def main():
 
 	# Run session
 	with tf.Session(config=config) as sess:
-		data_train = read_data(FLAGS.fpath_data_train)
-		data_test = read_data(FLAGS.fpath_data_validation)
+		data_train = read_data(flags.fpath_data_train)
+		data_test = read_data(flags.fpath_data_validation)
 
 		summaries_dir = './logs'
 		train_writer = tf.summary.FileWriter(summaries_dir + '/train', sess.graph)
