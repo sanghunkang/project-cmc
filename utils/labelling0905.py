@@ -31,11 +31,11 @@ def check_dir(fpath):
 for i in range(0,len(df)):
     try:
         #
-        fpath_src = os.path.join(dir_src, str(df["PID"][i]) + ".dcm")
-        if type(df["TYPE2"][i]) in [int, str]: fpath_dst = os.path.join(dir_dst, "{}/{}.dcm".format(str(df["TYPE2"][i]), df["PID"][i]))
-        else: fpath_dst = os.path.join(dir_dst, "_{}/{}.dcm".format(str(df["TYPE1"][i][0]), df["PID"][i]))
+        fpath_src = os.path.join(dir_src, str(df["PID"][i]) + ".bmp")
+        if type(df["TYPE2"][i]) in [int, str]: fpath_dst = os.path.join(dir_dst, "{}/{}.bmp".format(str(df["TYPE2"][i]), df["PID"][i]))
+        else: fpath_dst = os.path.join(dir_dst, "_{}/{}.bmp".format(str(df["TYPE1"][i][0]), df["PID"][i]))
         check_dir(fpath_dst)
         shutil.copy(fpath_src, fpath_dst)
         print(i, df["PID"][i], df["TYPE1"][i][0], df["TYPE2"][i], type(df["TYPE2"][i]) in [int, str])
     except FileNotFoundError:
-        print("FileNotFoundError ad {}".format(str(df["PID"][i])))
+        print("FileNotFoundError at {}".format(str(df["PID"][i])))
