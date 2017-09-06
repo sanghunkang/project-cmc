@@ -13,8 +13,6 @@ import tensorflow as tf
 from params import params
 from arxtectInceptionv1 import arxtect_inceptionv1
 
-
-
 # Define some functions... for whatever purposes
 def read_data(fpath):
 	"""
@@ -63,8 +61,11 @@ FLAGS = tf.flags.FLAGS
 
 tf.flags.DEFINE_string("fpath_data_train", "../../dev-data/project-cmc/pickle/test_train.pickle", "The directory to save the model files in.")
 tf.flags.DEFINE_string("fpath_data_validation", "../../dev-data/project-cmc/pickle/validation_train.pickle", "The directory to save the model files in.")
+
+tf.flags.DEFINE_integer("num_class", 2, "Learning rate, epsilon")
 tf.flags.DEFINE_integer("batch_size", 128, "How many examples to process per batch for training and evaluation")
 tf.flags.DEFINE_integer("num_steps", 1000, "How many times to update weights")
+tf.flags.DEFINE_integer("learning_rate", 0.0001, "Learning rate, epsilon")
 
 print("++++++++++ Inception-v1 ++++++++++")
 dict_lyr = np.load(FPATH_DATA_WEIGHTPRETRAINED, encoding='latin1').item() # return dict
@@ -75,14 +76,12 @@ data_saved = {'var_epoch_saved': tf.Variable(0)}
 
 # BUILDING THE COMPUTATIONAL GRAPH
 # Hyperparameters
-learning_rate = 0.0001
-#num_itr = 300
-#batch_size = 128
+learning_rate = FLAGS.learning_rate
 display_step = 10
 
 # tf Graph input
 len_input = 224*224*3
-num_class = 2 # Normal or Abnormal
+num_class = FLAGS.num_class # Normal or Abnormal
 num_device = 4
 
 X = tf.placeholder(tf.float32, [None, len_input])
