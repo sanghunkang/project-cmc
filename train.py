@@ -55,8 +55,6 @@ def feed_dict(data, batch_size, len_input):
 
 # Inception-v1
 FPATH_DATA_WEIGHTPRETRAINED = "../../dev-data/weight-pretrained/googlenet.npy"
-FPATH_DATA_TRAIN =  "../../dev-data/project-cmc/pickle/test_train.pickle"
-FPATH_DATA_TEST =  "../../dev-data/project-cmc/pickle/test_validation.pickle"
 FLAGS = tf.flags.FLAGS
 
 tf.flags.DEFINE_string("fpath_data_train", "../../dev-data/project-cmc/pickle/test_train.pickle", "The directory to save the model files in.")
@@ -67,6 +65,8 @@ tf.flags.DEFINE_integer("batch_size", 128, "How many examples to process per bat
 tf.flags.DEFINE_integer("num_steps", 1000, "How many times to update weights")
 tf.flags.DEFINE_float("learning_rate", 0.0001, "Learning rate, epsilon")
 
+tf.flags.DEFINE_integer("first_gpu_id", 0, "id of the first gpu")
+tf.flags.DEFINE_integer("num_gpu",1, "Number of gpu to utilise")
 print("++++++++++ Inception-v1 ++++++++++")
 dict_lyr = np.load(FPATH_DATA_WEIGHTPRETRAINED, encoding='latin1').item() # return dict
 params_pre = reformat_params(dict_lyr)
@@ -82,14 +82,12 @@ display_step = 10
 # tf Graph input
 len_input = 224*224*3
 num_class = FLAGS.num_class # Normal or Abnormal
-num_device = 4
+num_device = FLAGS.num_gpu
 
-X = tf.placeholder(tf.float32, [None, len_input])
-y = tf.placeholder(tf.float32, [None, num_class])
 
-with tf.device("/gpu:0"):
-	# y0, y1, y2, y3 = tf.split(y, 4, 0)
-	# X0, X1, X2, X3 = tf.split(X, 4, 0)  # tf.split(0, 3, X, name='split_X')
+with tf.device("/gpu:{0}".format(FLAGS.first_gpu_id)):
+	X = tf.placeholder(tf.float32, [None, len_input])
+	y = tf.placeholder(tf.float32, [None, num_class])
 
 	stack_X = tf.split(X, num_device, 0)
 	stack_y = tf.split(y, num_device, 0)
@@ -99,14 +97,14 @@ with tf.device("/gpu:0"):
 	stack_grad=[0]*num_device
 for i in range(num_device):
 
-	with tf.device("/gpu:{0}".format(i)):
+	with tf.device("/gpu:{0}".format(i + FLAGS.first_gpu_id)):
 		# Define loss, compute gradients
 		stack_pred[i] = arxtect_inceptionv1(stack_X[i], params_pre, params)
 		stack_xentropy[i] = tf.nn.softmax_cross_entropy_with_logits(logits=stack_pred[i], labels=stack_y[i])
 		stack_cost[i] = tf.reduce_mean(stack_xentropy[i])
 		stack_grad[i] = tf.train.AdamOptimizer(learning_rate=learning_rate).compute_gradients(stack_cost[i])
 	
-with tf.device("/gpu:{0}".format(i)):
+with tf.device("/gpu:{0}".format(i + FLAGS.first_gpu_id)):
 	#print(stack_grad[0])
 	grad = reduce(lambda x0, x1: x0 + x1, stack_grad) 
 	#grad = stack_grad[0] + stack_grad[1]
@@ -140,8 +138,10 @@ def main(unused_argv):
 
 		data_train = read_data(FLAGS.fpath_data_train)
 		data_test = read_data(FLAGS.fpath_data_validation)
+		print(data_train.shape)
+		print(data_test.shape)
 
-		summaries_dir = './logs'
+		summaries_dir = './{0}'.format(FLAGS.ckpt_name)
 		train_writer = tf.summary.FileWriter(summaries_dir + '/train', sess.graph)
 		test_writer = tf.summary.FileWriter(summaries_dir + '/test')
 
@@ -151,7 +151,7 @@ def main(unused_argv):
 
 		# For train
 		try:
-			saver.restore(sess, './modelckpt/{}.ckpt'.format(FLAGS.ckpt_name))
+			saver.restore(sess, './{}/checkpoint.ckpt'.format(FLAGS.ckpt_name))
 			print('Model restored')
 			epoch_saved = data_saved['var_epoch_saved'].eval()
 		except tf.errors.NotFoundError:
@@ -168,7 +168,7 @@ def main(unused_argv):
 			summary, acc_train, loss_train, _ = sess.run([merged, accuracy, cost, optimizer], feed_dict=feed_dict(data_train, batch_size, len_input))
 			train_writer.add_summary(summary, epoch)
 
-			summary, acc_test = sess.run([merged, accuracy], feed_dict=feed_dict(data_test, batch_size, len_input))
+			summary, acc_test = sess.run([merged, accuracy], feed_dict=feed_dict(data_test, data_test.shape[0], len_input))
 			test_writer.add_summary(summary, epoch)
 			print("Accuracy at step {0}: {1}".format(epoch, acc_test))
 
@@ -182,7 +182,7 @@ def main(unused_argv):
 		# Save the variables
 		epoch_new = epoch_saved + num_itr
 		sess.run(data_saved["var_epoch_saved"].assign(epoch_new))
-		fpath_ckpt = saver.save(sess, "./modelckpt/{0}.ckpt".format(FLAGS.ckpt_name))
+		fpath_ckpt = saver.save(sess, "./{0}/checkpoint.ckpt".format(FLAGS.ckpt_name))
 		print("Model saved in file: {0}".format(fpath_ckpt))
 
 if __name__ == "__main__":

@@ -12,6 +12,6 @@ params= {
 	'fc7_W': tf.Variable(tf.random_normal([4096, 4096]), name='fc7_W'),
 	'fc7_b': tf.Variable(tf.random_normal([4096]), name='fc7_b'),
 
-	'fc8_W': tf.Variable(tf.random_normal([4096, 2]), name='fc8_W'),
-	'fc8_b': tf.Variable(tf.random_normal([2]), name='fc8_b'),  # 2 outputs (class prediction)
+	'fc8_W': tf.Variable(tf.random_normal([4096, 4]), name='fc8_W'),
+	'fc8_b': tf.Variable(tf.random_normal([4]), name='fc8_b'),  # 2 outputs (class prediction)
 }

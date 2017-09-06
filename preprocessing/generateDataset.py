@@ -99,20 +99,25 @@ def divide_trainNtest(seq_seq_rec, ratio):
 	stack_seq_rec_train = []
 	stack_seq_rec_test = []
 	for seq_rec in seq_seq_rec:
-		np.random.shuffle(seq_rec)
-		stack_seq_rec_train.append(seq_rec[:int(seq_rec.shape[0]*ratio)])
-		stack_seq_rec_test.append(seq_rec[int(seq_rec.shape[0]*ratio):])
+		#np.random.shuffle(seq_rec)
+		stack_seq_rec_train.append(seq_rec)
+		#stack_seq_rec_train.append(seq_rec[:int(seq_rec.shape[0]*ratio)])
+		#stack_seq_rec_test.append(seq_rec[int(seq_rec.shape[0]*ratio):])
 	seq_rec_train = np.concatenate((stack_seq_rec_train))
-	seq_rec_test = np.concatenate((stack_seq_rec_test))
+	#seq_rec_test = np.concatenate((stack_seq_rec_test))
+	seq_rec_test = []	
 	return seq_rec_train, seq_rec_test
 
 def write_pickles(seq_seq_rec, dir_dst, prefix_fname):
 	seq_rec_train, seq_rec_test = divide_trainNtest(seq_seq_rec, ratio_train2val)
-	with open(os.path.join(dir_dst, prefix_fname + "_train.pickle"), 'wb') as handle:
+	
+	with open(os.path.join(dir_dst, prefix_fname + ".pickle"), 'wb') as handle:
 		pickle.dump(seq_rec_train, handle, protocol=2)
-
-	with open(os.path.join(dir_dst, prefix_fname + "_validation.pickle"), 'wb') as handle:
-		pickle.dump(seq_rec_test, handle, protocol=2)
+	#with open(os.path.join(dir_dst, prefix_fname + "_train.pickle"), 'wb') as handle:
+	#	pickle.dump(seq_rec_train, handle, protocol=2)
+	#
+	#with open(os.path.join(dir_dst, prefix_fname + "_validation.pickle"), 'wb') as handle:
+	#	pickle.dump(seq_rec_test, handle, protocol=2)
 
 dir_src = "./"
 dir_dst = "./"
