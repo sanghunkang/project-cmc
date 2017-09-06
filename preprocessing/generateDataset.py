@@ -22,6 +22,7 @@ parser.add_argument("-r", "--ratio", type=float, help="Ratio between training an
 parser.add_argument("-p", "--resolution", type=int, help="Number of pixels of both sides. Default is 224")
 parser.add_argument("-n", "--sample_size", type=int, help="Number of sample of each class. Default is 1000")
 parser.add_argument("-c", "--classlabel", type=str, help="Number of splits is the number of classes, and symbols in each split is classified into that class.")
+parser.add_argument("-b", "--is_balanced", type=bool, help="Whether to balance data or not, if false, all data in the directories will be used. Default is true.")
 
 args = parser.parse_args()
 
@@ -31,15 +32,18 @@ def generate_seq_fpath(dir_src, c):
 	random.shuffle(seq_fpath)
 	return [os.path.join(dir_src_abs, fpath) for fpath in seq_fpath if fpath.split(".")[-1].lower() in EXT_IMAGE]
 
-def generate_seq_seq_fpath(dir_src, classlabel, sample_size):
+def generate_seq_seq_fpath(dir_src, classlabel, sample_size, is_balanced):
 
 	seq_seq_fpath =[]
 	for info in classlabel.split("/"):
 		seq_fpath = []
 		for c in info:
 			seq_fpath = seq_fpath + generate_seq_fpath(dir_src, c)
-		assert len(seq_fpath)>= sample_size, "Not enough samples"
-		seq_seq_fpath.append(seq_fpath[:sample_size])
+		#assert len(seq_fpath)>= sample_size, "Not enough samples"
+		if is_balanced == True: 
+			seq_seq_fpath.append(seq_fpath[:sample_size])
+		else:
+			seq_seq_fpath.append(seq_fpath)
 	return seq_seq_fpath
 
 def generate_area_crop(img):
@@ -117,6 +121,7 @@ ratio_train2val = 0.8
 resolution = (224,224,3)
 sample_size = 1000
 classlabel = "0/1"
+is_balanced = True
 
 print(ratio_train2val)
 
@@ -131,8 +136,9 @@ if args.ratio: ratio_train2val = args.ratio
 if args.resolution: resolution = (args.resolution, args.resolution, 3)
 if args.sample_size: sample_size = args.sample_size
 if args.classlabel: classlabel = args.classlabel
+if args.is_balanced: is_balanced = args.is_balanced
 
-seq_seq_fpath = generate_seq_seq_fpath(dir_src, classlabel, sample_size)
+seq_seq_fpath = generate_seq_seq_fpath(dir_src, classlabel, sample_size, is_balanced)
 seq_seq_rec = serialize_dir(seq_seq_fpath)
 write_pickles(seq_seq_rec, dir_dst, prefix_fname)
 

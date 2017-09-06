@@ -61,11 +61,11 @@ FLAGS = tf.flags.FLAGS
 
 tf.flags.DEFINE_string("fpath_data_train", "../../dev-data/project-cmc/pickle/test_train.pickle", "The directory to save the model files in.")
 tf.flags.DEFINE_string("fpath_data_validation", "../../dev-data/project-cmc/pickle/validation_train.pickle", "The directory to save the model files in.")
-
+tf.flags.DEFINE_string("ckpt_name","ckpt","name of ckpt file")
 tf.flags.DEFINE_integer("num_class", 2, "Learning rate, epsilon")
 tf.flags.DEFINE_integer("batch_size", 128, "How many examples to process per batch for training and evaluation")
 tf.flags.DEFINE_integer("num_steps", 1000, "How many times to update weights")
-tf.flags.DEFINE_integer("learning_rate", 0.0001, "Learning rate, epsilon")
+tf.flags.DEFINE_float("learning_rate", 0.0001, "Learning rate, epsilon")
 
 print("++++++++++ Inception-v1 ++++++++++")
 dict_lyr = np.load(FPATH_DATA_WEIGHTPRETRAINED, encoding='latin1').item() # return dict
@@ -151,7 +151,7 @@ def main(unused_argv):
 
 		# For train
 		try:
-			saver.restore(sess, './modelckpt/inception500.ckpt')
+			saver.restore(sess, './modelckpt/{}.ckpt'.format(FLAGS.ckpt_name))
 			print('Model restored')
 			epoch_saved = data_saved['var_epoch_saved'].eval()
 		except tf.errors.NotFoundError:
@@ -182,7 +182,7 @@ def main(unused_argv):
 		# Save the variables
 		epoch_new = epoch_saved + num_itr
 		sess.run(data_saved["var_epoch_saved"].assign(epoch_new))
-		fpath_ckpt = saver.save(sess, "./modelckpt/inception{0}.ckpt".format(epoch_new))
+		fpath_ckpt = saver.save(sess, "./modelckpt/{0}.ckpt".format(FLAGS.ckpt_name))
 		print("Model saved in file: {0}".format(fpath_ckpt))
 
 if __name__ == "__main__":
