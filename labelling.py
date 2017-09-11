@@ -35,10 +35,10 @@ for i in range(len(df)):
             fname = "{0}_{1}{2}_{3}.bmp".format(df["TYPE2"][i], str(df["TYPE1"][i][0]), str(df["TYPE1"][i][2]), df["PID"][i])
         else:
             fname = "{0}_{1}{2}_{3}.bmp".format("X", str(df["TYPE1"][i][0]), str(df["TYPE1"][i][2]), df["PID"][i])
-        # fpath_dst = os.path.join(dir_dst, fname)
+        fpath_dst = os.path.join(dir_dst, fname)
         print(fpath_dst)
         check_dir(fpath_dst)
-        shutil.copy(fpath_src, fpath_dst)
+        shutil.copyfile(fpath_src, fpath_dst)
         print(fname)
     except FileNotFoundError as e:
         print(e)
