@@ -11,7 +11,6 @@ args = parser.parse_args()
 
 dir_src = "./"
 dir_dst = "./"
-fpath_ref = ""
 
 if args.src: dir_src = args.src
 if args.dst: dir_dst = args.dst
@@ -20,7 +19,7 @@ if args.dst: dir_dst = args.dst
 print(sys.platform)
 
 for fname in os.listdir(dir_src):
-	fpath_src = os.path.join(dir_src, fname + ".bmp")
+	fpath_src = os.path.join(dir_src, fname)
 	fname_final = "X_00_{0}.bmp".format(fname)
 	fpath_dst = os.path.join(dir_dst, fname_final)
 	print(fpath_dst)
