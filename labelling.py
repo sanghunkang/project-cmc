@@ -38,7 +38,7 @@ for i in range(len(df)):
         fpath_dst = os.path.join(dir_dst, fname)
         print(fpath_dst)
         # check_dir(fpath_dst)
-        shutil.copyfile(fpath_src, fpath_dst)
+        shutil.copy(fpath_src, fpath_dst)
         print(fname)
     except FileNotFoundError as e:
         print(e)
