@@ -20,7 +20,7 @@ print(sys.platform)
 
 for fname in os.listdir(dir_src):
 	fpath_src = os.path.join(dir_src, fname)
-	fname_final = "X_00_{0}.bmp".format(fname)
+	fname_final = "X_00_{0}".format(fname)
 	fpath_dst = os.path.join(dir_dst, fname_final)
 	print(fpath_dst)
 	# check_dir(fpath_dst)
