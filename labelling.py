@@ -39,5 +39,6 @@ for i in range(len(df)):
         check_dir(fpath_dst)
         shutil.copy(fpath_src, fpath_dst)
         print(fname)
-    except FileNotFoundError:
-        print("FileNotFoundError at {0}".format(str(df["PID"][i])))
+    except FileNotFoundError as e:
+        print(e)
+        # print("FileNotFoundError at {0}".format(str(df["PID"][i])))
