@@ -15,7 +15,6 @@ fpath_ref = ""
 
 if args.src: dir_src = args.src
 if args.dst: dir_dst = args.dst
-if args.ref: fpath_ref = args.ref
 
 # Check on which system the programme is running
 print(sys.platform)
