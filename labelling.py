@@ -28,14 +28,16 @@ df = pd.read_csv(fpath_ref, delimiter=',', encoding="utf-8-sig")
 def check_dir(fpath):
     if not os.path.isdir(fpath.rsplit("/", 1)[0]): os.mkdir(fpath.rsplit("/", 1)[0])
 
-for i in range(0,len(df)):
+for i in range(len(df)):
     try:
-        #
         fpath_src = os.path.join(dir_src, str(df["PID"][i]) + ".bmp")
-        if type(df["TYPE2"][i]) in [int, str]: fpath_dst = os.path.join(dir_dst, "{}/{}.bmp".format(str(df["TYPE2"][i]), df["PID"][i]))
-        else: fpath_dst = os.path.join(dir_dst, "_{}/{}.bmp".format(str(df["TYPE1"][i][0]), df["PID"][i]))
+        if type(df["TYPE2"][i]) in [int, str]:
+            fname = "{0}_{1}{2}_{3}.bmp".format(df["TYPE2"][i], str(df["TYPE1"][i][0]), str(df["TYPE1"][i][2]), df["PID"][i])
+        else:
+            fname = "{0}_{1}{2}_{3}.bmp".format("X", str(df["TYPE1"][i][0]), str(df["TYPE1"][i][2]), df["PID"][i])
+        fpath_dst = os.path.join(dir_dst, fname)
         check_dir(fpath_dst)
         shutil.copy(fpath_src, fpath_dst)
-        print(i, df["PID"][i], df["TYPE1"][i][0], df["TYPE2"][i], type(df["TYPE2"][i]) in [int, str])
+        print(fname)
     except FileNotFoundError:
-        print("FileNotFoundError at {}".format(str(df["PID"][i])))
+        print("FileNotFoundError at {0}".format(str(df["PID"][i])))

@@ -22,8 +22,8 @@ def read_data(fpath):
 		data 		: np.array
 	"""
 	with open(fpath, "rb") as fo:
-		data_train = cPickle.load(fo)#, encoding="bytes")
-		np.random.shuffle(data_train)
+		data = cPickle.load(fo)
+		np.random.shuffle(data)
 	return data_train
 
 def reformat_params(dict_lyr):
@@ -41,7 +41,7 @@ def reformat_params(dict_lyr):
 		params_pre[key + "_b"] = tf.Variable(dict_lyr[key]["biases"], name=key + "_b")
 	return params_pre
 
-def feed_dict(data, batch_size, len_input):
+def feed_dict(stack_data, batch_size, len_input):
 	"""
 	args:
 		data 		: np.array, 2-dimensional
@@ -50,15 +50,20 @@ def feed_dict(data, batch_size, len_input):
 	return:
 					: dict, {X: np.array of shape(len_input, batch_size), y: np.array of shape(num_class, batch_size)}
 	"""
-	batch = data[np.random.choice(data.shape[0], size=batch_size,  replace=True)]
+	assert batch_size%len(stack_data)==0
+	batch_size_each = batch_size//len(stack_data)
+	batch = np.zeros(shape=(batch_size, len_input+len(stack_data)), dtype=np.float32)
+	for i, data in enumerate(stack_data):
+		batch[i*batch_size_each:(i + 1)*batch_size_each] = data[np.random.choice(data.shape[0], size=batch_size_each,  replace=True)]
+	# batch = data[np.random.choice(data.shape[0], size=batch_size,  replace=True)]
 	return {X: batch[:,:len_input], y: batch[:,len_input:]}
 
 # Inception-v1
 FPATH_DATA_WEIGHTPRETRAINED = "../../dev-data/weight-pretrained/googlenet.npy"
 FLAGS = tf.flags.FLAGS
 
-tf.flags.DEFINE_string("fpath_data_train", "../../dev-data/project-cmc/pickle/test_train.pickle", "The directory to save the model files in.")
-tf.flags.DEFINE_string("fpath_data_validation", "../../dev-data/project-cmc/pickle/validation_train.pickle", "The directory to save the model files in.")
+tf.flags.DEFINE_string("dir_data_train", "../../dev-data/project-cmc/pickle/train.", "The directory to save the model files in.")
+tf.flags.DEFINE_string("dir_data_validation", "../../dev-data/project-cmc/pickle/validation", "The directory to save the model files in.")
 tf.flags.DEFINE_string("ckpt_name","ckpt","name of ckpt file")
 tf.flags.DEFINE_integer("num_class", 2, "Learning rate, epsilon")
 tf.flags.DEFINE_integer("batch_size", 128, "How many examples to process per batch for training and evaluation")
