@@ -26,10 +26,10 @@ def generate_arr_fpath(dir_src):
 	return arr_fpath
 
 def reformat_classlabel(fpath):
-	fname = arr_fpath.split("/")[-1]
+	fname = fpath.split("/")[-1]
 	# Labelling by confirmed diagnosis
 	if fname[0] != "X":
-		if fname[0] != "S": classlabel = "0"
+		if fname[0] == "S": classlabel = "0"
 		else: classlabel = fname[0]
 	# Labelling by temporary diagnosis
 	elif fname[0] == "X":
@@ -50,9 +50,9 @@ def filter_arr_fpath(arr_fpath, classlabel):
 		classlabel_filename = reformat_classlabel(fpath)
 		if classlabel_filename == classlabel:
 			arr_fpath_filtered.append(fpath)
-			print("Added to array : {0}".format(fpath))
+			print("Added to array : {0} {1}".format(classlabel_filename, fpath))
 		else:
-			print("Irrelevant file: {0}".format(fpath))
+			print("Irrelevant file: {0} {1}".format(classlabel_filename, fpath))
 	return arr_fpath_filtered
 
 def write_pickles(seq_seq_rec, dir_dst, prefix_fname):	
@@ -76,7 +76,7 @@ if args.resolution: resolution = (args.resolution, args.resolution, 3)
 if args.classlabel: classlabel = args.classlabel
 
 arr_fpath = generate_arr_fpath(dir_src)
-arr_fpath filter_arr_fpath(arr_fpath, classlabel)
+arr_fpath = filter_arr_fpath(arr_fpath, classlabel)
 
 # seq_seq_fpath = generate_seq_seq_fpath(dir_src, classlabel, sample_size, is_balanced)
 # seq_seq_rec = serialize_dir(seq_seq_fpath)
