@@ -2,8 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # Import built-in packages
-import pickle as cPickle
-import time
+import os, pickle, time
 
 from functools import reduce
 # Import external packages
@@ -22,9 +21,12 @@ def read_data(fpath):
 		data 		: np.array
 	"""
 	with open(fpath, "rb") as fo:
-		data = cPickle.load(fo)
+		data = pickle.load(fo)
 		np.random.shuffle(data)
-	return data_train
+	return data
+
+def generate_stack_data(dirpath):
+	return [read_data(os.path.join(dirpath, fpath)) for fpath in os.listdir(dirpath)]
 
 def reformat_params(dict_lyr):
 	"""
@@ -50,70 +52,68 @@ def feed_dict(stack_data, batch_size, len_input):
 	return:
 					: dict, {X: np.array of shape(len_input, batch_size), y: np.array of shape(num_class, batch_size)}
 	"""
-	assert batch_size%len(stack_data)==0
+	assert batch_size%len(stack_data)==0, "Batch size must be a multiplication of the number of classes"
+
 	batch_size_each = batch_size//len(stack_data)
 	batch = np.zeros(shape=(batch_size, len_input+len(stack_data)), dtype=np.float32)
 	for i, data in enumerate(stack_data):
-		batch[i*batch_size_each:(i + 1)*batch_size_each] = data[np.random.choice(data.shape[0], size=batch_size_each,  replace=True)]
+		# print(i, batch_size_each, data.shape[0])
+		batch[i*batch_size_each:(i + 1)*batch_size_each] = data[np.random.choice(data.shape[0], size=batch_size_each, replace=True)]
+	np.random.shuffle(batch)
 	# batch = data[np.random.choice(data.shape[0], size=batch_size,  replace=True)]
 	return {X: batch[:,:len_input], y: batch[:,len_input:]}
 
 # Inception-v1
-FPATH_DATA_WEIGHTPRETRAINED = "../../dev-data/weight-pretrained/googlenet.npy"
 FLAGS = tf.flags.FLAGS
 
-tf.flags.DEFINE_string("dir_data_train", "../../dev-data/project-cmc/pickle/train.", "The directory to save the model files in.")
-tf.flags.DEFINE_string("dir_data_validation", "../../dev-data/project-cmc/pickle/validation", "The directory to save the model files in.")
-tf.flags.DEFINE_string("ckpt_name","ckpt","name of ckpt file")
-tf.flags.DEFINE_integer("num_class", 2, "Learning rate, epsilon")
+tf.flags.DEFINE_string("dir_data_train", "../../dev-data/project-cmc/pickle/train.", "Directory containing train pickle files")
+tf.flags.DEFINE_string("dir_data_eval", "../../dev-data/project-cmc/pickle/eval", "Directory containing evaluation pickle files")
+tf.flags.DEFINE_string("ckpt_name", "ckpt", "Name of ckpt file")
 tf.flags.DEFINE_integer("batch_size", 128, "How many examples to process per batch for training and evaluation")
 tf.flags.DEFINE_integer("num_steps", 1000, "How many times to update weights")
+tf.flags.DEFINE_integer("display_step", 10, "(Should have been) How often to show logs")
 tf.flags.DEFINE_float("learning_rate", 0.0001, "Learning rate, epsilon")
 
 tf.flags.DEFINE_integer("first_gpu_id", 0, "id of the first gpu")
-tf.flags.DEFINE_integer("num_gpu",1, "Number of gpu to utilise")
-print("++++++++++ Inception-v1 ++++++++++")
-dict_lyr = np.load(FPATH_DATA_WEIGHTPRETRAINED, encoding='latin1').item() # return dict
+tf.flags.DEFINE_integer("num_gpu",1, "Number of gpu to utilise, even numbers are recommended")
+
+# Read pretrained weights
+dict_lyr = np.load("../../dev-data/weight-pretrained/googlenet.npy", encoding='latin1').item() # return dict
 params_pre = reformat_params(dict_lyr)
 
 data_saved = {'var_epoch_saved': tf.Variable(0)}
 
-
 # BUILDING THE COMPUTATIONAL GRAPH
 # Hyperparameters
-learning_rate = FLAGS.learning_rate
-display_step = 10
 
 # tf Graph input
 len_input = 224*224*3
-num_class = FLAGS.num_class # Normal or Abnormal
-num_device = FLAGS.num_gpu
-
+num_class = len(os.listdir(FLAGS.dir_data_train)) # Normal or Abnormal
 
 with tf.device("/gpu:{0}".format(FLAGS.first_gpu_id)):
 	X = tf.placeholder(tf.float32, [None, len_input])
 	y = tf.placeholder(tf.float32, [None, num_class])
 
-	stack_X = tf.split(X, num_device, 0)
-	stack_y = tf.split(y, num_device, 0)
-	stack_pred=[0]*num_device
-	stack_xentropy=[0]*num_device
-	stack_cost=[0]*num_device
-	stack_grad=[0]*num_device
-for i in range(num_device):
+	stack_X = tf.split(X, FLAGS.num_gpu, 0)
+	stack_y = tf.split(y, FLAGS.num_gpu, 0)
+	stack_pred=[0]*FLAGS.num_gpu
+	stack_xentropy=[0]*FLAGS.num_gpu
+	stack_cost=[0]*FLAGS.num_gpu
+	stack_grad=[0]*FLAGS.num_gpu
+for i in range(FLAGS.num_gpu):
 
 	with tf.device("/gpu:{0}".format(i + FLAGS.first_gpu_id)):
 		# Define loss, compute gradients
 		stack_pred[i] = arxtect_inceptionv1(stack_X[i], params_pre, params)
 		stack_xentropy[i] = tf.nn.softmax_cross_entropy_with_logits(logits=stack_pred[i], labels=stack_y[i])
 		stack_cost[i] = tf.reduce_mean(stack_xentropy[i])
-		stack_grad[i] = tf.train.AdamOptimizer(learning_rate=learning_rate).compute_gradients(stack_cost[i])
+		stack_grad[i] = tf.train.AdamOptimizer(learning_rate=FLAGS.learning_rate).compute_gradients(stack_cost[i])
 	
 with tf.device("/gpu:{0}".format(i + FLAGS.first_gpu_id)):
 	#print(stack_grad[0])
 	grad = reduce(lambda x0, x1: x0 + x1, stack_grad) 
 	#grad = stack_grad[0] + stack_grad[1]
-	optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).apply_gradients(grad)
+	optimizer = tf.train.AdamOptimizer(learning_rate=FLAGS.learning_rate).apply_gradients(grad)
 
 	# Evaluate model
 	pred = tf.concat(stack_pred, axis=0)
@@ -128,7 +128,6 @@ merged = tf.summary.merge_all()
 
 # RUNNING THE COMPUTATIONAL GRAPH
 def main(unused_argv):
-
 	# Define saver
 	saver = tf.train.Saver()
 
@@ -141,14 +140,17 @@ def main(unused_argv):
 		num_itr = FLAGS.num_steps
 		batch_size = FLAGS.batch_size
 
-		data_train = read_data(FLAGS.fpath_data_train)
-		data_test = read_data(FLAGS.fpath_data_validation)
-		print(data_train.shape)
-		print(data_test.shape)
+		stack_data_train = generate_stack_data(FLAGS.dir_data_train)
+		stack_data_eval = generate_stack_data(FLAGS.dir_data_eval)
+
+		# data_train = read_data(FLAGS.fpath_data_train)
+		# data_test = read_data(FLAGS.fpath_data_validation)
+		# print(data_train.shape)
+		# print(data_test.shape)
 
 		summaries_dir = './{0}'.format(FLAGS.ckpt_name)
 		train_writer = tf.summary.FileWriter(summaries_dir + '/train', sess.graph)
-		test_writer = tf.summary.FileWriter(summaries_dir + '/test')
+		test_writer = tf.summary.FileWriter(summaries_dir + '/eval')
 
 		# Initialise the variables and run
 		init = tf.global_variables_initializer()
@@ -156,7 +158,7 @@ def main(unused_argv):
 
 		# For train
 		try:
-			saver.restore(sess, './{}/checkpoint.ckpt'.format(FLAGS.ckpt_name))
+			saver.restore(sess, "./{0}/checkpoint.ckpt".format(FLAGS.ckpt_name))
 			print('Model restored')
 			epoch_saved = data_saved['var_epoch_saved'].eval()
 		except tf.errors.NotFoundError:
@@ -170,14 +172,14 @@ def main(unused_argv):
 		t0 = time.time()
 		for epoch in range(epoch_saved, epoch_saved + num_itr):
 			# Run optimization op (backprop)
-			summary, acc_train, loss_train, _ = sess.run([merged, accuracy, cost, optimizer], feed_dict=feed_dict(data_train, batch_size, len_input))
+			summary, acc_train, loss_train, _ = sess.run([merged, accuracy, cost, optimizer], feed_dict=feed_dict(stack_data_train, batch_size, len_input))
 			train_writer.add_summary(summary, epoch)
 
-			summary, acc_test = sess.run([merged, accuracy], feed_dict=feed_dict(data_test, data_test.shape[0], len_input))
+			summary, acc_test = sess.run([merged, accuracy], feed_dict=feed_dict(stack_data_eval, batch_size, len_input))
 			test_writer.add_summary(summary, epoch)
 			print("Accuracy at step {0}: {1}".format(epoch, acc_test))
 
-			if epoch % display_step == 0:
+			if epoch % FLAGS.display_step == 0:
 				print("Epoch {0}, Minibatch Loss= {1:.6f}, Train Accuracy= {2:.5f}".format(epoch, loss_train, acc_train))
 
 		print("Optimisation Finished!")
