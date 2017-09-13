@@ -26,6 +26,9 @@ def read_data(fpath):
 	return data
 
 def generate_stack_data(dirpath):
+	print("____________________________________")
+	for fpath in os.listdir(dirpath): print(fpath)
+	print("____________________________________")
 	return [read_data(os.path.join(dirpath, fpath)) for fpath in os.listdir(dirpath)]
 
 def reformat_params(dict_lyr):
@@ -52,6 +55,9 @@ def feed_dict(stack_data, batch_size, len_input):
 	return:
 					: dict, {X: np.array of shape(len_input, batch_size), y: np.array of shape(num_class, batch_size)}
 	"""
+	#print("++++++++++++++++++++++++++++++++++++++++")
+	#print(len(stack_data))	
+	#print("++++++++++++++++++++++++++++++++++++++++")
 	assert batch_size%len(stack_data)==0, "Batch size must be a multiplication of the number of classes"
 
 	batch_size_each = batch_size//len(stack_data)
@@ -72,7 +78,7 @@ tf.flags.DEFINE_string("ckpt_name", "ckpt", "Name of ckpt file")
 tf.flags.DEFINE_integer("batch_size", 128, "How many examples to process per batch for training and evaluation")
 tf.flags.DEFINE_integer("num_steps", 1000, "How many times to update weights")
 tf.flags.DEFINE_integer("display_step", 10, "(Should have been) How often to show logs")
-tf.flags.DEFINE_float("learning_rate", 0.0001, "Learning rate, epsilon")
+tf.flags.DEFINE_float("learning_rate", 0.001, "Learning rate, epsilon")
 
 tf.flags.DEFINE_integer("first_gpu_id", 0, "id of the first gpu")
 tf.flags.DEFINE_integer("num_gpu",1, "Number of gpu to utilise, even numbers are recommended")
@@ -87,7 +93,7 @@ data_saved = {'var_epoch_saved': tf.Variable(0)}
 # Hyperparameters
 
 # tf Graph input
-len_input = 224*224*3
+len_input = 448*448*3
 num_class = len(os.listdir(FLAGS.dir_data_train)) # Normal or Abnormal
 
 with tf.device("/gpu:{0}".format(FLAGS.first_gpu_id)):
@@ -177,7 +183,7 @@ def main(unused_argv):
 
 			summary, acc_test = sess.run([merged, accuracy], feed_dict=feed_dict(stack_data_eval, batch_size, len_input))
 			test_writer.add_summary(summary, epoch)
-			print("Accuracy at step {0}: {1}".format(epoch, acc_test))
+			print("Accuracy at step {0}: {1:.5f}".format(epoch, acc_test))
 
 			if epoch % FLAGS.display_step == 0:
 				print("Epoch {0}, Minibatch Loss= {1:.6f}, Train Accuracy= {2:.5f}".format(epoch, loss_train, acc_train))

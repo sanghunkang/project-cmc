@@ -26,7 +26,7 @@ def generate_arr_fpath(dir_src):
 	return arr_fpath
 
 def reformat_classlabel(fpath):
-	fname = fpath.split("\\")[-1]
+	fname = fpath.split("/")[-1]
 	# Labelling by confirmed diagnosis
 	if fname[0] != "X":
 		if fname[0] == "S": classlabel = "0"
@@ -111,7 +111,9 @@ for i, classlabel in enumerate(classlabels):
 	arr_fpath = filter_arr_fpath(arr_fpath, classlabel)
 	vec_class = [0]*len(classlabels)
 	vec_class[i] = 1
+	print(vec_class)
 	arr_rec = generate_arr_rec(arr_fpath, resolution, vec_class)
+	print(arr_rec.shape)
 	write_pickles(arr_rec, dir_dst, prefix_fname, classlabel)
 
 # seq_seq_fpath = generate_seq_seq_fpath(dir_src, classlabel, sample_size, is_balanced)

@@ -57,7 +57,7 @@ def inception_module(tsr_X, name_module, params_pre):
 	return inception_concat
 
 def arxtect_inceptionv1(X, params_pre, params):
-	X_reshaped = tf.reshape(X, shape=[-1, 224, 224, 3])
+	X_reshaped = tf.reshape(X, shape=[-1, 448, 448, 3])
 
 	# Convolution and max pooling(down-sampling) Layers
 	# Convolution parameters are from pretrained data
@@ -87,7 +87,14 @@ def arxtect_inceptionv1(X, params_pre, params):
 
 	# Fully connected layer, training is done only for here
 	inception_5ap_1d = conv2ser(inception_5ap, params["fc6_W"])
+	#inception_5ap_1d = tf.nn.dropout(inception_5ap_1d, 0.5)
+
 	fc6 = fc1d(inception_5ap_1d, params["fc6_W"], params["fc6_b"],  bn=True)
+	#fc6 = tf.nn.dropout(fc6, 0.5)
+
 	fc7 = fc1d(fc6, params["fc7_W"], params["fc7_b"], bn=True)
+	#fc7 = tf.nn.dropout(fc7, 0.5)
+
+
 	pred = fc1d(fc7, params["fc8_W"], params["fc8_b"], bn=True)
 	return pred
