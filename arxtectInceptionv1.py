@@ -58,7 +58,7 @@ def inception_module(tsr_X, name_module, params_pre):
 
 def arxtect_inceptionv1(X, params_pre, params):
 	X_reshaped = tf.reshape(X, shape=[-1, 448, 448, 3])
-
+	X_reshaped = tf.image.random_contrast(X_reshaped, 0, 1)
 	# Convolution and max pooling(down-sampling) Layers
 	# Convolution parameters are from pretrained data
 	conv1_7x7_s2 = conv2d(X_reshaped, params_pre['conv1_7x7_s2_W'], params_pre['conv1_7x7_s2_b'], strides=2)
