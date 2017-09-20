@@ -7,7 +7,7 @@
 # The source code itself was written in Python3, but the output pickle files are compatible with Python2 as well.
 
 # Import built-in modules
-import argparse, os, pickle, random
+import argparse, os, pickle, sys
 
 # Import 3rd party packages
 import PIL.Image as Image
@@ -19,14 +19,18 @@ parser.add_argument("-d", "--dst", type=str, help="uppermost destination directo
 parser.add_argument("-f", "--filename", type=str, help="Output file name")
 parser.add_argument("-r", "--resolution", type=int, help="Number of pixels of both sides. Default is 224")
 parser.add_argument("-c", "--classlabels", type=str, help="Number of splits is the number of classes, and symbols in each split is classified into that class.")
+parser.add_argument("-e", "--one_hot", type=int, help="One-hot index for that class")
+parser.add_argument("-n", "--num_class", type=int, help="Number of classes")
 args = parser.parse_args()
+print(args)
 
 def generate_arr_fpath(dir_src):
 	arr_fpath = [os.path.join(dir_src, fname) for fname in os.listdir(dir_src)]
 	return arr_fpath
 
 def reformat_classlabel(fpath):
-	fname = fpath.split("/")[-1]
+	if "win" in sys.platform: fname = fpath.split("\\")[-1]
+	if "linux" in sys.platform: fname = fpath.split("/")[-1]
 	# Labelling by confirmed diagnosis
 	if fname[0] != "X":
 		if fname[0] == "S": classlabel = "0"
@@ -53,7 +57,8 @@ def filter_arr_fpath(arr_fpath, classlabel):
 			arr_fpath_filtered.append(fpath)
 			print("Added to array : {0} {1}".format(classlabel_filename, fpath))
 		else:
-			print("Irrelevant file: {0} {1}".format(classlabel_filename, fpath))
+			pass
+			# print("Irrelevant file: {0} {1}".format(classlabel_filename, fpath))
 	return arr_fpath_filtered
 
 def generate_area_crop(img):
@@ -86,7 +91,7 @@ def generate_arr_rec(arr_fpath, resolution, vec_class):
 	return seq_rec
 
 def write_pickles(arr_rec, dir_dst, prefix_fname, classlabel):
-	with open(os.path.join(dir_dst, "{0}_{1}.pickle".format(prefix_fname, classlabel)), 'wb') as handle:
+	with open(os.path.join(dir_dst, "{0}.pickle".format(prefix_fname)), 'wb') as handle:
 		pickle.dump(arr_rec, handle, protocol=2)
 
 dir_src = "./"
@@ -97,6 +102,7 @@ sample_size = 1000
 classlabels = "N0123"
 is_balanced = True
 
+
 EXT_IMAGE = ["bmp","jpg","png","gif"]
 
 if args.src: dir_src = args.src
@@ -104,17 +110,26 @@ if args.dst: dir_dst = args.dst
 if args.filename: prefix_fname = args.filename
 if args.resolution: resolution = (args.resolution, args.resolution, 3)
 if args.classlabels: classlabels = args.classlabels
+# if args.one_hot: one_hot = args.one_hot
+# print(one_hot)
+if args.num_class: num_class = args.num_class
 
+stack_arr_rec = []
 for i, classlabel in enumerate(classlabels):
 	print(classlabel)
 	arr_fpath = generate_arr_fpath(dir_src)
 	arr_fpath = filter_arr_fpath(arr_fpath, classlabel)
-	vec_class = [0]*len(classlabels)
-	vec_class[i] = 1
+
+	vec_class = [0]*num_class
+	vec_class[args.one_hot] = 1
+
 	print(vec_class)
 	arr_rec = generate_arr_rec(arr_fpath, resolution, vec_class)
-	print(arr_rec.shape)
-	write_pickles(arr_rec, dir_dst, prefix_fname, classlabel)
+	stack_arr_rec.append(arr_rec)
+
+arr_rec_final = np.vstack(stack_arr_rec)
+print(arr_rec_final.shape, vec_class)
+write_pickles(arr_rec_final, dir_dst, prefix_fname, classlabel)
 
 # seq_seq_fpath = generate_seq_seq_fpath(dir_src, classlabel, sample_size, is_balanced)
 # seq_seq_rec = serialize_dir(seq_seq_fpath)
