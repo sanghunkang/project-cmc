@@ -154,7 +154,7 @@ def main(unused_argv):
 		# print(data_train.shape)
 		# print(data_test.shape)
 
-		summaries_dir = './{0}'.format(FLAGS.ckpt_name)
+		summaries_dir = './logs_{0}'.format(FLAGS.ckpt_name)
 		train_writer = tf.summary.FileWriter(summaries_dir + '/train', sess.graph)
 		test_writer = tf.summary.FileWriter(summaries_dir + '/eval')
 
