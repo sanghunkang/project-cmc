@@ -12,6 +12,10 @@ import tensorflow as tf
 # from params import params
 from models import InceptionV1BasedModel
 
+def generate_arr_fpath(dir_src):
+	arr_fpath = [os.path.join(dir_src, fname) for fname in os.listdir(dir_src)]
+	return arr_fpath
+
 def generate_area_crop(img):
 	"""
 	args:
@@ -26,10 +30,10 @@ def generate_area_crop(img):
 	return crop_area
 
 def generate_arr_rec(arr_fpath, resolution):
+	# for fpath in arr_ddfpath: print(fpath)
 	size_1d = resolution[0]*resolution[1]*resolution[2]
 	seq_rec = np.zeros(shape=(len(arr_fpath), int(size_1d)), dtype=np.float32)
 	for i, fpath in enumerate(arr_fpath):
-		print(fpath)
 		img = Image.open(fpath).convert('RGB')
 		area_crop = generate_area_crop(img)
 		img_crop = img.crop(area_crop)
@@ -37,7 +41,7 @@ def generate_arr_rec(arr_fpath, resolution):
 
 		arr_img = np.asarray(img_resize)
 		arr1d_img = arr_img.reshape(size_1d)
-		seq_rec[i] = np.append(arr1d_img)  # [1, 0] for normal
+		seq_rec[i] = arr1d_img  # [1, 0] for normal
 	return seq_rec
 
 
@@ -82,7 +86,9 @@ for i in range(FLAGS.num_gpu):
 with tf.device("/gpu:{0}".format(i + FLAGS.first_gpu_id)):
     # Evaluate model
     pred = tf.concat(stack_pred, axis=0)
-    # correct_pred = tf.equal(tf.argmax(pred, 1), tf.argmax(y, 1))
+    print(pred.get_shape())
+    result = tf.argmax(pred)
+    print(result.get_shape())
 
 # RUNNING THE COMPUTATIONAL GRAPH
 def main(unused_argv):
@@ -103,12 +109,14 @@ def main(unused_argv):
             saver.restore(sess, "./{0}/checkpoint.ckpt".format(FLAGS.ckpt_name))
             print('Model restored')
         except tf.errors.NotFoundError:
-            print('No saved model found')
+            print('No saved model found')	
+        arr_fpath = generate_arr_fpath(FLAGS.dir_data_deploy)
+        data_deploy = generate_arr_rec(arr_fpath, (FLAGS.resolution,FLAGS.resolution,3))
 
-        data_deploy = generate_arr_rec(FLAGS.dir_data_deploy, (FLAGS.resolution,FLAGS.resolution,3))
-
-        pred_print = sess.run([pred], feed_dict={X: data_deploy})
-        print(pred_print)
+        pred_print, result_print = sess.run([pred, result], feed_dict={X: data_deploy})
+        print(pred_print.shape)
+        result_print = np.argmax(pred_print, axis=1)
+        for i, fpath in enumerate(arr_fpath): print(fpath, result_print[i], pred_print[i])
 
 
 

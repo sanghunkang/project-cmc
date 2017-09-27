@@ -80,19 +80,19 @@ class BaseModel(object):
         raise NotImplementedError
 
 class InceptionV1BasedModel(BaseModel):
-    def __init__(self, num_class, shape):
+    def __init__(self, num_class):
         self.shape = [-1, 448, 448, 3]
 
         dict_lyr = np.load("../../dev-data/weight-pretrained/googlenet.npy", encoding='latin1').item()  # return dict
         self.params = reformat_params(dict_lyr)
-        self.params['fc6_W'] = tf.Variable(tf.random_normal([4096, 4096]), name='fc6_W'),
-        self.params['fc6_b'] = tf.Variable(tf.random_normal([4096]), name='fc6_b'),
+        self.params['fc6_W'] = tf.Variable(tf.random_normal([4096, 4096]), name='fc6_W')
+        self.params['fc6_b'] = tf.Variable(tf.random_normal([4096]), name='fc6_b')
 
-        self.params['fc7_W'] = tf.Variable(tf.random_normal([4096, 4096]), name='fc7_W'),
-        self.params['fc7_b'] = tf.Variable(tf.random_normal([4096]), name='fc7_b'),
+        self.params['fc7_W'] = tf.Variable(tf.random_normal([4096, 4096]), name='fc7_W')
+        self.params['fc7_b'] = tf.Variable(tf.random_normal([4096]), name='fc7_b')
 
-        self.params['fc8_W'] = tf.Variable(tf.random_normal([4096, num_class]), name='fc8_W'),
-        self.params['fc8_b'] = tf.Variable(tf.random_normal([num_class]), name='fc8_b')}
+        self.params['fc8_W'] = tf.Variable(tf.random_normal([4096, num_class]), name='fc8_W')
+        self.params['fc8_b'] = tf.Variable(tf.random_normal([num_class]), name='fc8_b')
 
     def run(self, X):
         X_reshaped = tf.reshape(X, shape=self.shape)
