@@ -7,6 +7,20 @@
 import numpy as np
 import tensorflow as tf
 
+def reformat_params(dict_lyr):
+	"""
+	Convert {layer:{Weight, bias}} into {layer_Weight, layer_bias} for easier referencing
+
+	args:
+		dict_lyr 	: dict, {layer_name:{variable1_name: tf.Variable, variable2_name: tf.Variable}}
+	return:
+		params_pre 	: dict, {variable_name: tf.Variable}
+	"""
+	params_pre = {}
+	for key in dict_lyr:
+		params_pre[key + "_W"] = tf.Variable(dict_lyr[key]["weights"], name=key + "_W")
+		params_pre[key + "_b"] = tf.Variable(dict_lyr[key]["biases"], name=key + "_b")
+	return params_pre
 
 def slice_params_module(name_module, params_pre):
     params_module = {}
@@ -58,7 +72,7 @@ def inception_module(tsr_X, name_module, params_pre):
     inception_concat = tf.concat([inception_1x1, inception_3x3, inception_5x5, inception_pool_proj], axis=-1)
     return inception_concat
 
-class BaseModel(Object):
+class BaseModel(object):
     def __init__(self):
         raise NotImplementedError
 
