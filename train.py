@@ -9,8 +9,9 @@ from functools import reduce
 import numpy as np
 import tensorflow as tf
 
-from params import params
-from arxtectInceptionv1 import arxtect_inceptionv1
+# from params import params
+# from arxtectInceptionv1 import arxtect_inceptionv1
+from models import InceptionV1BasedModel
 
 # Define some functions... for whatever purposes
 def read_data(fpath):
@@ -95,6 +96,7 @@ data_saved = {'var_epoch_saved': tf.Variable(0)}
 # tf Graph input
 len_input = 448*448*3
 num_class = len(os.listdir(FLAGS.dir_data_train)) # Normal or Abnormal
+model = InceptionV1BasedModel(num_class)
 
 with tf.device("/gpu:{0}".format(FLAGS.first_gpu_id)):
 	X = tf.placeholder(tf.float32, [None, len_input])
@@ -110,7 +112,8 @@ for i in range(FLAGS.num_gpu):
 
 	with tf.device("/gpu:{0}".format(i + FLAGS.first_gpu_id)):
 		# Define loss, compute gradients
-		stack_pred[i] = arxtect_inceptionv1(stack_X[i], params_pre, params)
+		stack_pred[i] = model.run(stack_X[i])
+		# stack_pred[i] = arxtect_inceptionv1(stack_X[i], params_pre, params)
 		stack_xentropy[i] = tf.nn.softmax_cross_entropy_with_logits(logits=stack_pred[i], labels=stack_y[i])
 		stack_cost[i] = tf.reduce_mean(stack_xentropy[i])
 		stack_grad[i] = tf.train.AdamOptimizer(learning_rate=FLAGS.learning_rate).compute_gradients(stack_cost[i])

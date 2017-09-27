@@ -23,15 +23,12 @@ def conv2d(x, W, b, strides=1):
     x = tf.nn.bias_add(x, b)
     return tf.nn.relu(x)
 
-
 def maxpool2d(x, k=2):
     # MaxPool2D wrapper
     return tf.nn.max_pool(x, ksize=[1, k, k, 1], strides=[1, k, k, 1], padding='SAME')
 
 
 def conv2ser(x, params_fc):
-    shape_ftmap_end = x.get_shape()
-    len_ftmap_end = int(shape_ftmap_end[1] * shape_ftmap_end[2] * shape_ftmap_end[3])
     return tf.reshape(x, [-1, params_fc.get_shape().as_list()[0]])
 
 
@@ -40,7 +37,6 @@ def fc1d(x, W, b, bn=False):
     fc = tf.add(tf.matmul(x, W), b)
     if bn == True: fc = tf.contrib.layers.batch_norm(fc)
     return tf.nn.relu(fc)
-
 
 def inception_module(tsr_X, name_module, params_pre):
     params_module = slice_params_module(name_module, params_pre)
@@ -69,9 +65,8 @@ class BaseModel(Object):
     def run(self, X):
         raise NotImplementedError
 
-
 class InceptionV1BasedModel(BaseModel):
-    def __init__(self):
+    def __init__(self, num_class):
         dict_lyr = np.load("../../dev-data/weight-pretrained/googlenet.npy", encoding='latin1').item()  # return dict
         self.params_pre = reformat_params(dict_lyr)
         self.params = { 'fc6_W': tf.Variable(tf.random_normal([4096, 4096]), name='fc6_W'),
@@ -80,12 +75,13 @@ class InceptionV1BasedModel(BaseModel):
                         'fc7_W': tf.Variable(tf.random_normal([4096, 4096]), name='fc7_W'),
                         'fc7_b': tf.Variable(tf.random_normal([4096]), name='fc7_b'),
 
-                        'fc8_W': tf.Variable(tf.random_normal([4096, 5]), name='fc8_W'),
-                        'fc8_b': tf.Variable(tf.random_normal([5]), name='fc8_b')}
+                        'fc8_W': tf.Variable(tf.random_normal([4096, num_class]), name='fc8_W'),
+                        'fc8_b': tf.Variable(tf.random_normal([num_class]), name='fc8_b')}
 
     def run(self, X):
         X_reshaped = tf.reshape(X, shape=[-1, 448, 448, 3])
-        X_reshaped = tf.image.random_contrast(X_reshaped, 0, 1)
+        # X_reshaped = tf.image.random_contrast(X_reshaped, 0, 1)
+
         # Convolution and max pooling(down-sampling) Layers
         # Convolution parameters are from pretrained data
         conv1_7x7_s2 = conv2d(X_reshaped, self.params_pre['conv1_7x7_s2_W'], self.params_pre['conv1_7x7_s2_b'], strides=2)
@@ -112,7 +108,8 @@ class InceptionV1BasedModel(BaseModel):
         print(inception_5ap.get_shape())
 
         # Fully connected layer, training is done only for here
-        inception_5ap_1d = conv2ser(inception_5ap, self.params["fc6_W"])
+        # inception_5ap_1d = conv2ser(inception_5ap, self.params["fc6_W"])
+        inception_5ap_1d = tf.reshape(inception_5ap, [-1, self.params["fc6_W"].get_shape().as_list()[0]])
 
         fc6 = fc1d(inception_5ap_1d, self.params["fc6_W"], self.params["fc6_b"], bn=True)
         fc7 = fc1d(fc6, self.params["fc7_W"], self.params["fc7_b"], bn=True)
