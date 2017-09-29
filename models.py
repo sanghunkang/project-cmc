@@ -131,15 +131,15 @@ class InceptionV1BasedModel(BaseModel):
         # Fully connected layer, training is done only for here
         with tf.variable_scope("fc5"):
                 fc5 = tf.reshape(inception_5ap, [-1, self.params["fc6_W"].get_shape().as_list()[0]])
-                fc5 = tf.contrib.layers.batch_norm(fc5, is_training=is_training, reuse=None)
+                fc5 = tf.contrib.layers.batch_norm(fc5, is_training=is_training, reuse=True)
 
         with tf.variable_scope("fc6"):
                 fc6 = fc1d(fc5 , self.params["fc6_W"], self.params["fc6_b"])
-                fc6 = tf.contrib.layers.batch_norm(fc6, is_training=is_training, reuse=None)
+                fc6 = tf.contrib.layers.batch_norm(fc6, is_training=is_training, reuse=True)
 
         with tf.variable_scope("fc7"):
                 fc7 = fc1d(fc6, self.params["fc7_W"], self.params["fc7_b"])
-                fc7 = tf.contrib.layers.batch_norm(fc7, is_training=is_training, reuse=None)
+                fc7 = tf.contrib.layers.batch_norm(fc7, is_training=is_training, reuse=True)
 
         pred = fc1d(fc7, self.params["fc8_W"], self.params["fc8_b"])
         return pred
