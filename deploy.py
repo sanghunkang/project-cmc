@@ -78,7 +78,7 @@ with tf.device("/gpu:{0}".format(FLAGS.first_gpu_id)):
 for i in range(FLAGS.num_gpu):
     with tf.device("/gpu:{0}".format(i + FLAGS.first_gpu_id)):
         # Define loss, compute gradients
-        stack_pred[i] = model.run(stack_X[i])
+        stack_pred[i] = model.run(stack_X[i], is_training=False)
         # stack_xentropy[i] = tf.nn.softmax_cross_entropy_with_logits(logits=stack_pred[i], labels=stack_y[i])
         # stack_cost[i] = tf.reduce_mean(stack_xentropy[i])
         # stack_grad[i] = tf.train.AdamOptimizer(learning_rate=FLAGS.learning_rate).compute_gradients(stack_cost[i])

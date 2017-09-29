@@ -55,8 +55,8 @@ def fc1d(x, W, b):
     return tf.nn.relu(fc)
 
 
-def inception_module(tsr_X, name_module, params_pre):
-    params_module = slice_params_module(name_module, params_pre)
+def inception_module(tsr_X, name_module, params):
+    params_module = slice_params_module(name_module, params)
     # 1x1 convolution
     inception_1x1 = conv2d(tsr_X, params_module["1x1_W"], params_module["1x1_b"])
 
@@ -80,7 +80,7 @@ class BaseModel(object):
     def __init__(self, num_class):
         raise NotImplementedError
 
-    def run(self, X, **params_extra):
+    def run(self, X, is_training):
         raise NotImplementedError
 
 
@@ -99,7 +99,7 @@ class InceptionV1BasedModel(BaseModel):
         self.params['fc8_W'] = tf.Variable(tf.random_normal([4096, num_class]), name='fc8_W')
         self.params['fc8_b'] = tf.Variable(tf.random_normal([num_class]), name='fc8_b')
 
-    def run(self, X, **params_extra):
+    def run(self, X, is_training):
         X_reshaped = tf.reshape(X, shape=self.shape)
         # X_reshaped = tf.image.random_contrast(X_reshaped, 0, 1)
 
@@ -129,14 +129,17 @@ class InceptionV1BasedModel(BaseModel):
         print(inception_5ap.get_shape())
 
         # Fully connected layer, training is done only for here
-        fc5 = tf.reshape(inception_5ap, [-1, self.params["fc6_W"].get_shape().as_list()[0]])
-        fc5 = tf.contrib.layers.batch_norm(fc5, is_training=True, reuse=None)
+        with tf.variable_scope("fc5"):
+                fc5 = tf.reshape(inception_5ap, [-1, self.params["fc6_W"].get_shape().as_list()[0]])
+                fc5 = tf.contrib.layers.batch_norm(fc5, is_training=is_training, reuse=None)
 
-        fc6 = fc1d(fc5 , self.params["fc6_W"], self.params["fc6_b"])
-        fc6 = tf.contrib.layers.batch_norm(fc6, is_training=True, reuse=None)
+        with tf.variable_scope("fc6"):
+                fc6 = fc1d(fc5 , self.params["fc6_W"], self.params["fc6_b"])
+                fc6 = tf.contrib.layers.batch_norm(fc6, is_training=is_training, reuse=None)
 
-        fc7 = fc1d(fc6, self.params["fc7_W"], self.params["fc7_b"])
-        fc7 = tf.contrib.layers.batch_norm(fc7, is_training=True, reuse=None)
+        with tf.variable_scope("fc7"):
+                fc7 = fc1d(fc6, self.params["fc7_W"], self.params["fc7_b"])
+                fc7 = tf.contrib.layers.batch_norm(fc7, is_training=is_training, reuse=None)
 
         pred = fc1d(fc7, self.params["fc8_W"], self.params["fc8_b"])
         return pred
