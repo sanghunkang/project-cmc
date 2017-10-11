@@ -121,7 +121,12 @@ def main(unused_argv):
         print(pred_print.shape)
         print(deconv_print.shape)
         result_print = np.argmax(pred_print, axis=1)
-        for i, fpath in enumerate(arr_fpath): print(fpath, result_print[i], pred_print[i], deconv_print[i])
+        for i, fpath in enumerate(arr_fpath):
+            print(fpath, result_print[i], pred_print[i])
+            print(deconv_print[i].shape)
+            dd = deconv_print[i].astype(np.uint8)
+            img = Image.fromarray(dd)
+            img.save("{0}.bmp".format(i))
 
 
 
