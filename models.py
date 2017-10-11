@@ -42,7 +42,8 @@ def conv2d(x, W, b, strides=1):
 
 def maxpool2d(x, k=2):
     # MaxPool2D wrapper
-    return tf.nn.max_pool(x, ksize=[1, k, k, 1], strides=[1, k, k, 1], padding='SAME')
+    # if is_switch == True: return tf.nn.max_pool(x, ksize=[1, k, k, 1], strides=[1, k, k, 1], padding='SAME'), None
+    return tf.nn.max_pool_with_argmax(x, ksize=[1, k, k, 1], strides=[1, k, k, 1], padding='SAME')
 
 
 def conv2ser(x, params_fc):
@@ -105,23 +106,32 @@ class InceptionV1BasedModel(BaseModel):
 
         # Convolution and max pooling(down-sampling) Layers
         # Convolution parameters are from pretrained data
-        conv1_7x7_s2 = conv2d(X_reshaped, self.params['conv1_7x7_s2_W'], self.params['conv1_7x7_s2_b'], strides=2)
-        conv1_7x7p_s2 = maxpool2d(conv1_7x7_s2, k=2)
+        conv1_7x7_s2 = conv2d(X_reshaped, self.params['conv1_7x7_s2_W'], self.params['conv1_7x7_s2_b'])
+        conv1_7x7p_s2, switch_conv1 = maxpool2d(conv1_7x7_s2, k=2)
+
+        if is_training == False:
+            tf.nn.conv2d_transpose( switch_conv1,
+                                    filter=self.params['conv1_7x7_s2_W'],
+                                    output_shape=[-1, 448, 448, 3],
+                                    strides=[1, strides, strides, 1],
+                                    padding='SAME',
+                                    data_format='NHWC',
+                                    name=None)
 
         conv2_3x3 = conv2d(conv1_7x7p_s2, self.params['conv2_3x3_W'], self.params['conv2_3x3_b'])
-        conv2p_3x3 = maxpool2d(conv2_3x3, k=2)
+        conv2p_3x3, switch_conv2p_3x3 = maxpool2d(conv2_3x3, k=2)
 
         # Inception modules
         inception_3a = inception_module(conv2p_3x3, "inception_3a_", self.params)
         inception_3b = inception_module(inception_3a, "inception_3b_", self.params)
-        inception_3bp = maxpool2d(inception_3b, k=2)
+        inception_3bp, switch_inception_3bp = maxpool2d(inception_3b, k=2)
 
         inception_4a = inception_module(inception_3bp, "inception_4a_", self.params)
         inception_4b = inception_module(inception_4a, "inception_4b_", self.params)
         inception_4c = inception_module(inception_4b, "inception_4c_", self.params)
         inception_4d = inception_module(inception_4c, "inception_4d_", self.params)
         inception_4e = inception_module(inception_4d, "inception_4e_", self.params)
-        inception_4ep = maxpool2d(inception_4e, k=2)
+        inception_4ep, switch_inception_4ep = maxpool2d(inception_4e, k=2)
 
         inception_5a = inception_module(inception_4ep, "inception_5a_", self.params)
         inception_5b = inception_module(inception_5a, "inception_5b_", self.params)
@@ -129,17 +139,14 @@ class InceptionV1BasedModel(BaseModel):
         print(inception_5ap.get_shape())
 
         # Fully connected layer, training is done only for here
-        with tf.variable_scope("fc5"):
-                fc5 = tf.reshape(inception_5ap, [-1, self.params["fc6_W"].get_shape().as_list()[0]])
-                fc5 = tf.contrib.layers.batch_norm(fc5, is_training=is_training, reuse=True)
+        fc5 = tf.reshape(inception_5ap, [-1, self.params["fc6_W"].get_shape().as_list()[0]])
+        fc5 = tf.contrib.layers.batch_norm(fc5, is_training=is_training, reuse=True)
 
-        with tf.variable_scope("fc6"):
-                fc6 = fc1d(fc5 , self.params["fc6_W"], self.params["fc6_b"])
-                fc6 = tf.contrib.layers.batch_norm(fc6, is_training=is_training, reuse=True)
+        fc6 = fc1d(fc5 , self.params["fc6_W"], self.params["fc6_b"])
+        fc6 = tf.contrib.layers.batch_norm(fc6, is_training=is_training, reuse=True)
 
-        with tf.variable_scope("fc7"):
-                fc7 = fc1d(fc6, self.params["fc7_W"], self.params["fc7_b"])
-                fc7 = tf.contrib.layers.batch_norm(fc7, is_training=is_training, reuse=True)
+        fc7 = fc1d(fc6, self.params["fc7_W"], self.params["fc7_b"])
+        fc7 = tf.contrib.layers.batch_norm(fc7, is_training=is_training, reuse=True)
 
         pred = fc1d(fc7, self.params["fc8_W"], self.params["fc8_b"])
         return pred
