@@ -79,7 +79,7 @@ with tf.device("/gpu:{0}".format(FLAGS.first_gpu_id)):
 for i in range(FLAGS.num_gpu):
     with tf.device("/gpu:{0}".format(i + FLAGS.first_gpu_id)):
         # Define loss, compute gradients
-        stack_pred[i], stack_deconv[i] = model.run(stack_X[i], is_training=False)
+        stack_pred[i], stack_deconv[i] = model.run(stack_X[i], is_training=False, num_rec=11)
         # stack_xentropy[i] = tf.nn.softmax_cross_entropy_with_logits(logits=stack_pred[i], labels=stack_y[i])
         # stack_cost[i] = tf.reduce_mean(stack_xentropy[i])
         # stack_grad[i] = tf.train.AdamOptimizer(learning_rate=FLAGS.learning_rate).compute_gradients(stack_cost[i])
@@ -90,7 +90,8 @@ with tf.device("/gpu:{0}".format(i + FLAGS.first_gpu_id)):
     print(pred.get_shape())
     result = tf.argmax(pred)
     print(result.get_shape())
-    #deconv = tf.concat(stack_deconv[i], axis=0)
+    deconv = tf.concat(stack_deconv, axis=0)
+    print(deconv.get_shape())
 
 # RUNNING THE COMPUTATIONAL GRAPH
 def main(unused_argv):
@@ -115,9 +116,10 @@ def main(unused_argv):
         arr_fpath = generate_arr_fpath(FLAGS.dir_data_deploy)
         data_deploy = generate_arr_rec(arr_fpath, (FLAGS.resolution,FLAGS.resolution,3))
 
-        #pred_print, result_print, deconv_print = sess.run([pred, result, deconv], feed_dict={X: data_deploy})
-        pred_print, result_print = sess.run([pred, result], feed_dict={X:data_deploy})
+        pred_print, result_print, deconv_print = sess.run([pred, result, deconv], feed_dict={X: data_deploy})
+        #pred_print, result_print = sess.run([pred, result], feed_dict={X:data_deploy})
         print(pred_print.shape)
+        print(deconv_print.shape)
         result_print = np.argmax(pred_print, axis=1)
         for i, fpath in enumerate(arr_fpath): print(fpath, result_print[i], pred_print[i], deconv_print[i])
 

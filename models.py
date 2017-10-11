@@ -100,7 +100,7 @@ class InceptionV1BasedModel(BaseModel):
         self.params['fc8_W'] = tf.Variable(tf.random_normal([4096, num_class]), name='fc8_W')
         self.params['fc8_b'] = tf.Variable(tf.random_normal([num_class]), name='fc8_b')
 
-    def run(self, X, is_training):
+    def run(self, X, is_training, num_rec=11):
         X_reshaped = tf.reshape(X, shape=self.shape)
         # X_reshaped = tf.image.random_contrast(X_reshaped, 0, 1)
 
@@ -155,7 +155,12 @@ class InceptionV1BasedModel(BaseModel):
             return pred
         elif is_training == False:
             switch_conv1 = tf.cast(switch_conv1, tf.float32)
-            deconv1 = tf.nn.conv2d_transpose(switch_conv1, filter=self.params['conv1_7x7_s2_W'], output_shape=[-1, 448, 448, 3], strides=[1, 2, 2, 1])
+            print("____________________________")
+            print(pred)
+            print(switch_conv1)
+            deconv1 = tf.nn.conv2d_transpose(switch_conv1, filter=self.params['conv1_7x7_s2_W'], output_shape=[num_rec,448,448,3], strides=[1, 4, 4, 1])
+            print(deconv1)
+            print("_____________________________")
             return pred, deconv1
 
 
