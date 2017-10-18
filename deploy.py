@@ -125,6 +125,9 @@ def main(unused_argv):
             print(fpath, result_print[i], pred_print[i])
             print(deconv_print[i].shape)
             dd = deconv_print[i].astype(np.uint8)
+            print(dd)
+            print(dd.shape)
+            print(type(dd))
             img = Image.fromarray(dd)
             img.save("{0}.bmp".format(i))
 
