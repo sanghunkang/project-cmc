@@ -50,6 +50,8 @@ FLAGS = tf.flags.FLAGS
 tf.flags.DEFINE_string("dir_data_deploy", "../../dev-data/project-cmc/pickle/eval",
                        "Directory where the images to infer are located.")
 tf.flags.DEFINE_string("ckpt_name", "ckpt", "Name of ckpt file")
+tf.flags.DEFINE_string("name_layer", "conv1", "Name of the layer")
+tf.flags.DEFINE_integer("index_filter", 20, "Index of the filter to perform deconvolution")
 tf.flags.DEFINE_integer("num_class", 2, "Number of classes")
 tf.flags.DEFINE_integer("first_gpu_id", 0, "id of the first gpu")
 tf.flags.DEFINE_integer("num_gpu", 1, "Number of gpu to utilise, even numbers are recommended")
@@ -79,7 +81,7 @@ with tf.device("/gpu:{0}".format(FLAGS.first_gpu_id)):
 for i in range(FLAGS.num_gpu):
     with tf.device("/gpu:{0}".format(i + FLAGS.first_gpu_id)):
         # Define loss, compute gradients
-        stack_pred[i], stack_deconv[i] = model.run(stack_X[i], is_training=False, num_rec=11)
+        stack_pred[i], stack_deconv[i] = model.run(stack_X[i], is_training=False, num_rec=11, index_filter=FLAGS.index_filter)
         # stack_xentropy[i] = tf.nn.softmax_cross_entropy_with_logits(logits=stack_pred[i], labels=stack_y[i])
         # stack_cost[i] = tf.reduce_mean(stack_xentropy[i])
         # stack_grad[i] = tf.train.AdamOptimizer(learning_rate=FLAGS.learning_rate).compute_gradients(stack_cost[i])
@@ -124,7 +126,9 @@ def main(unused_argv):
         for i, fpath in enumerate(arr_fpath):
             print(fpath, result_print[i], pred_print[i])
             print(deconv_print[i].shape)
-            dd = deconv_print[i].astype(np.uint8)
+            dd = deconv_print[i]
+            print(dd)
+            dd = dd.astype(np.uint8)
             print(dd)
             print(dd.shape)
             print(type(dd))

@@ -100,7 +100,7 @@ class InceptionV1BasedModel(BaseModel):
         self.params['fc8_W'] = tf.Variable(tf.random_normal([4096, num_class]), name='fc8_W')
         self.params['fc8_b'] = tf.Variable(tf.random_normal([num_class]), name='fc8_b')
 
-    def run(self, X, is_training, num_rec=11):
+    def run(self, X, is_training, num_rec=11, index_filter=0, name_layer="conv1"):
         X_reshaped = tf.reshape(X, shape=self.shape)
 
         # Convolution and max pooling(down-sampling) Layers
@@ -141,20 +141,17 @@ class InceptionV1BasedModel(BaseModel):
         if is_training == True:
             return pred
         elif is_training == False:
-            switch_conv1 = tf.cast(switch_conv1, tf.float32)
-            idx_deconv = 0
-            switch_deconv1 = tf.slice(switch_conv1, [0,0,0,idx_deconv],[num_rec,112,112,1])
-            print(switch_deconv1)
-            filter_deconv = tf.slice(self.params['conv1_7x7_s2_W'],[0,0,0,idx_deconv],[7,7,3,1])
-            print(filter_deconv)
-            deconv1 = tf.nn.conv2d_transpose(switch_deconv1,
+            index_deconv = 10
+            filter_deconv = tf.slice(self.params['conv1_7x7_s2_W'],[0,0,0,index_deconv],[7,7,3,1])
+            
+            switch_all = tf.cast(switch_conv1, tf.float32)
+            switch = tf.slice(switch_all, [0,0,0,index_deconv],[num_rec,112,112,1])
+            #switch_relu = tf.nn.relu(switch)
+            deconv = tf.nn.conv2d_transpose(switch,
                                              filter=filter_deconv,
                                              output_shape=[num_rec,448,448,3],
                                              strides=[1, 4, 4, 1])
-            print("_________This is deconv1________________")
-            print(deconv1)
-            print("_____________________________")
-            return pred, deconv1
+            return pred, deconv
 
 
 class Vgg16Model(BaseModel):
