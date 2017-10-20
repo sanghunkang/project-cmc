@@ -100,25 +100,13 @@ class InceptionV1BasedModel(BaseModel):
         self.params['fc8_W'] = tf.Variable(tf.random_normal([4096, num_class]), name='fc8_W')
         self.params['fc8_b'] = tf.Variable(tf.random_normal([num_class]), name='fc8_b')
 
-    def run(self, X, is_training, num_rec=11):
+    def run(self, X, is_training, num_rec=11, index_filter=0, name_layer="conv1"):
         X_reshaped = tf.reshape(X, shape=self.shape)
-        # X_reshaped = tf.image.random_contrast(X_reshaped, 0, 1)
 
         # Convolution and max pooling(down-sampling) Layers
         # Convolution parameters are from pretrained data
         conv1_7x7_s2 = conv2d(X_reshaped, self.params['conv1_7x7_s2_W'], self.params['conv1_7x7_s2_b'], strides=2)
         conv1_7x7p_s2, switch_conv1 = maxpool2d(conv1_7x7_s2, k=2, name="switch")
-        #switch_conv1 = tf.cast(switch_conv1, dtype=tf.float32)
-        #print(switch_conv1)
-        
-        #if is_training == False:
-        #    tf.nn.conv2d_transpose( switch_conv1,
-        #                            filter=self.params['conv1_7x7_s2_W'],
-        #                            output_shape=[-1, 448, 448, 3],
-        #                            strides=[1, 2, 2, 1],
-        #                            padding='SAME',
-        #                            data_format='NHWC',
-        #                            name=None)
 
         conv2_3x3 = conv2d(conv1_7x7p_s2, self.params['conv2_3x3_W'], self.params['conv2_3x3_b'])
         conv2p_3x3, switch_conv2p_3x3 = maxpool2d(conv2_3x3, k=2)
@@ -138,9 +126,8 @@ class InceptionV1BasedModel(BaseModel):
         inception_5a = inception_module(inception_4ep, "inception_5a_", self.params)
         inception_5b = inception_module(inception_5a, "inception_5b_", self.params)
         inception_5ap = tf.nn.avg_pool(inception_5b, ksize=[1, 7, 7, 1], strides=[1, 7, 7, 1], padding='SAME')
-        print(inception_5ap.get_shape())
 
-        # Fully connected layer, training is done only for here
+        # Fully connected layer
         fc5 = tf.reshape(inception_5ap, [-1, self.params["fc6_W"].get_shape().as_list()[0]])
         fc5 = tf.contrib.layers.batch_norm(fc5, is_training=is_training)#, reuse=True)
 
@@ -154,14 +141,17 @@ class InceptionV1BasedModel(BaseModel):
         if is_training == True:
             return pred
         elif is_training == False:
-            switch_conv1 = tf.cast(switch_conv1, tf.float32)
-            print("____________________________")
-            print(pred)
-            print(switch_conv1)
-            deconv1 = tf.nn.conv2d_transpose(switch_conv1, filter=self.params['conv1_7x7_s2_W'], output_shape=[num_rec,448,448,3], strides=[1, 4, 4, 1])
-            print(deconv1)
-            print("_____________________________")
-            return pred, deconv1
+            index_deconv = 10
+            filter_deconv = tf.slice(self.params['conv1_7x7_s2_W'],[0,0,0,index_deconv],[7,7,3,1])
+            
+            switch_all = tf.cast(switch_conv1, tf.float32)
+            switch = tf.slice(switch_all, [0,0,0,index_deconv],[num_rec,112,112,1])
+            #switch_relu = tf.nn.relu(switch)
+            deconv = tf.nn.conv2d_transpose(switch,
+                                             filter=filter_deconv,
+                                             output_shape=[num_rec,448,448,3],
+                                             strides=[1, 4, 4, 1])
+            return pred, deconv
 
 
 class Vgg16Model(BaseModel):
