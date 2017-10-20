@@ -55,7 +55,6 @@ tf.flags.DEFINE_integer("first_gpu_id", 0, "id of the first gpu")
 tf.flags.DEFINE_integer("num_gpu", 1, "Number of gpu to utilise, even numbers are recommended")
 tf.flags.DEFINE_integer("resolution", 448, "Number of gpu to utilise, even numbers are recommended")
 
-
 # Read pretrained weights
 data_saved = {'var_epoch_saved': tf.Variable(0)}
 
@@ -127,8 +126,6 @@ def main(unused_argv):
             dd = deconv_print[i].astype(np.uint8)
             img = Image.fromarray(dd)
             img.save("{0}.bmp".format(i))
-
-
 
 if __name__ == "__main__":
     tf.app.run()
