@@ -11,7 +11,7 @@ PIL
 
 CUDA
 CUDNN
-
+possibly some others?
 Deployments in Windows and OSX are not supported yet.
 
 ## Usage
