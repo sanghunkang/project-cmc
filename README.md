@@ -6,7 +6,7 @@ Ubuntu 16.04 LTS
 
 Python 3.5.2
 TensorFlow 1.3.0
-numoy 1.13...
+numpy 1.13...
 PIL
 
 CUDA
