@@ -143,7 +143,7 @@ class InceptionV1BasedModel(BaseModel):
         elif is_training == False:
             index_deconv = 10
             filter_deconv = tf.slice(self.params['conv1_7x7_s2_W'],[0,0,0,index_deconv],[7,7,3,1])
-            
+             
             switch_all = tf.cast(switch_conv1, tf.float32)
             switch = tf.slice(switch_all, [0,0,0,index_deconv],[num_rec,112,112,1])
             #switch_relu = tf.nn.relu(switch)
