@@ -118,8 +118,11 @@ for i in range(FLAGS.num_gpu):
 		stack_grad[i] = tf.train.AdamOptimizer(learning_rate=FLAGS.learning_rate).compute_gradients(stack_cost[i])
 	
 with tf.device("/gpu:{0}".format(i + FLAGS.first_gpu_id)):
-	#print(stack_grad[0])
+	#for grad in stack_grad:
+        #        print(grad)
+        #print(stack_grad[0])
 	grad = reduce(lambda x0, x1: x0 + x1, stack_grad) 
+	print(grad)
 	#grad = stack_grad[0] + stack_grad[1]
 	optimizer = tf.train.AdamOptimizer(learning_rate=FLAGS.learning_rate).apply_gradients(grad)
 
