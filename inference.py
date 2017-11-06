@@ -30,7 +30,6 @@ def generate_area_crop(img):
 	return crop_area
 
 def generate_arr_rec(arr_fpath, resolution):
-	# for fpath in arr_ddfpath: print(fpath)
 	size_1d = resolution[0]*resolution[1]*resolution[2]
 	seq_rec = np.zeros(shape=(len(arr_fpath), int(size_1d)), dtype=np.float32)
 	for i, fpath in enumerate(arr_fpath):
@@ -44,25 +43,26 @@ def generate_arr_rec(arr_fpath, resolution):
 		seq_rec[i] = arr1d_img  # [1, 0] for normal
 	return seq_rec
 
-
 # Inception-v1
 FLAGS = tf.flags.FLAGS
-tf.flags.DEFINE_string("dir_data_deploy", "../../dev-data/project-cmc/pickle/eval",
+tf.flags.DEFINE_string("dir_data_inference", "../../dev-data/project-cmc/pickle/eval",
                        "Directory where the images to infer are located.")
-tf.flags.DEFINE_string("ckpt_name", "ckpt", "Name of ckpt file")
-tf.flags.DEFINE_integer("num_class", 2, "Number of classes")
-tf.flags.DEFINE_integer("first_gpu_id", 0, "id of the first gpu")
-tf.flags.DEFINE_integer("num_gpu", 1, "Number of gpu to utilise, even numbers are recommended")
-tf.flags.DEFINE_integer("resolution", 448, "Number of gpu to utilise, even numbers are recommended")
+tf.flags.DEFINE_string("ckpt_name", "ckpt", "Name of the checkpoint file")
+tf.flags.DEFINE_integer("num_class", 2, "Number of classes. Must match with the number of classes from the model of checkpoint")
+tf.flags.DEFINE_integer("first_gpu_id", 0, "ID of the first GPU. Default is 0")
+tf.flags.DEFINE_integer("num_gpu", 1, "Number of GPUs to utilise. 1 or even numbers are recommended")
+tf.flags.DEFINE_integer("resolution", 448, "Resolution of input images. Must match with the resolution from the model of checkpoint")
 
 # Read pretrained weights
 data_saved = {'var_epoch_saved': tf.Variable(0)}
 
 # BUILDING THE COMPUTATIONAL GRAPH
 # tf Graph input
-len_input = 448 * 448 * 3
-num_class = FLAGS.num_class  # Normal or Abnormal
+len_input = FLAGS.resolution * FLAGS.resolution * 3
+num_class = FLAGS.num_class
 model = InceptionV1BasedModel(num_class)
+
+num_img = len([fname for fname in os.listdir() if fname.lower().endswith(["bmp","jpg","png","gif"])])
 
 with tf.device("/gpu:{0}".format(FLAGS.first_gpu_id)):
     X = tf.placeholder(tf.float32, [None, len_input])
@@ -78,10 +78,7 @@ with tf.device("/gpu:{0}".format(FLAGS.first_gpu_id)):
 for i in range(FLAGS.num_gpu):
     with tf.device("/gpu:{0}".format(i + FLAGS.first_gpu_id)):
         # Define loss, compute gradients
-        stack_pred[i], stack_deconv[i] = model.run(stack_X[i], is_training=False, num_rec=11)
-        # stack_xentropy[i] = tf.nn.softmax_cross_entropy_with_logits(logits=stack_pred[i], labels=stack_y[i])
-        # stack_cost[i] = tf.reduce_mean(stack_xentropy[i])
-        # stack_grad[i] = tf.train.AdamOptimizer(learning_rate=FLAGS.learning_rate).compute_gradients(stack_cost[i])
+        stack_pred[i], stack_deconv[i] = model.run(stack_X[i], is_training=False, num_rec=num_img)
 
 with tf.device("/gpu:{0}".format(i + FLAGS.first_gpu_id)):
     # Evaluate model

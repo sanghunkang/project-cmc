@@ -7,7 +7,6 @@
 import numpy as np
 import tensorflow as tf
 
-
 def reformat_params(dict_lyr):
     """
 	Convert {layer:{Weight, bias}} into {layer_Weight, layer_bias} for easier referencing
@@ -23,7 +22,6 @@ def reformat_params(dict_lyr):
         params_pre[key + "_b"] = tf.Variable(dict_lyr[key]["biases"], name=key + "_b")
     return params_pre
 
-
 def slice_params_module(name_module, params_pre):
     params_module = {}
     keys = [key for key in params_pre]
@@ -32,29 +30,23 @@ def slice_params_module(name_module, params_pre):
             params_module[key.replace(name_module, "")] = params_pre[key]
     return params_module
 
-
 def conv2d(x, W, b, strides=1):
     # Conv2D wrapper, with bias and relu activation
     x = tf.nn.conv2d(x, W, strides=[1, strides, strides, 1], padding='SAME')
     x = tf.nn.bias_add(x, b)
     return tf.nn.relu(x)
 
-
 def maxpool2d(x, k=2, name=None):
     # MaxPool2D wrapper
-    # if is_switch == True: return tf.nn.max_pool(x, ksize=[1, k, k, 1], strides=[1, k, k, 1], padding='SAME'), None
     return tf.nn.max_pool_with_argmax(x, ksize=[1, k, k, 1], strides=[1, k, k, 1], padding='SAME', name=name)
-
 
 def conv2ser(x, params_fc):
     return tf.reshape(x, [-1, params_fc.get_shape().as_list()[0]])
-
 
 def fc1d(x, W, b):
     # FC layer wrapper, with bias, relu activation plus batch-normalisation if demanded
     fc = tf.add(tf.matmul(x, W), b)
     return tf.nn.relu(fc)
-
 
 def inception_module(tsr_X, name_module, params):
     params_module = slice_params_module(name_module, params)
@@ -100,25 +92,14 @@ class InceptionV1BasedModel(BaseModel):
         self.params['fc8_W'] = tf.Variable(tf.random_normal([4096, num_class]), name='fc8_W')
         self.params['fc8_b'] = tf.Variable(tf.random_normal([num_class]), name='fc8_b')
 
-    def run(self, X, is_training, num_rec=11):
+    def run(self, X, is_training, num_img):
         X_reshaped = tf.reshape(X, shape=self.shape)
         # X_reshaped = tf.image.random_contrast(X_reshaped, 0, 1)
 
-        # Convolution and max pooling(down-sampling) Layers
+        # Convolution and max pooling(down-sampling) layers.
         # Convolution parameters are from pretrained data
         conv1_7x7_s2 = conv2d(X_reshaped, self.params['conv1_7x7_s2_W'], self.params['conv1_7x7_s2_b'], strides=2)
         conv1_7x7p_s2, switch_conv1 = maxpool2d(conv1_7x7_s2, k=2, name="switch")
-        #switch_conv1 = tf.cast(switch_conv1, dtype=tf.float32)
-        #print(switch_conv1)
-        
-        #if is_training == False:
-        #    tf.nn.conv2d_transpose( switch_conv1,
-        #                            filter=self.params['conv1_7x7_s2_W'],
-        #                            output_shape=[-1, 448, 448, 3],
-        #                            strides=[1, 2, 2, 1],
-        #                            padding='SAME',
-        #                            data_format='NHWC',
-        #                            name=None)
 
         conv2_3x3 = conv2d(conv1_7x7p_s2, self.params['conv2_3x3_W'], self.params['conv2_3x3_b'])
         conv2p_3x3, switch_conv2p_3x3 = maxpool2d(conv2_3x3, k=2)
@@ -140,7 +121,7 @@ class InceptionV1BasedModel(BaseModel):
         inception_5ap = tf.nn.avg_pool(inception_5b, ksize=[1, 7, 7, 1], strides=[1, 7, 7, 1], padding='SAME')
         print(inception_5ap.get_shape())
 
-        # Fully connected layer, training is done only for here
+        # Fully connected layer
         fc5 = tf.reshape(inception_5ap, [-1, self.params["fc6_W"].get_shape().as_list()[0]])
         fc5 = tf.contrib.layers.batch_norm(fc5, is_training=is_training)#, reuse=True)
 
@@ -158,7 +139,10 @@ class InceptionV1BasedModel(BaseModel):
             print("____________________________")
             print(pred)
             print(switch_conv1)
-            deconv1 = tf.nn.conv2d_transpose(switch_conv1, filter=self.params['conv1_7x7_s2_W'], output_shape=[num_rec,448,448,3], strides=[1, 4, 4, 1])
+            deconv1 = tf.nn.conv2d_transpose(switch_conv1, 
+                                            filter=self.params['conv1_7x7_s2_W'], 
+                                            output_shape=[num_img,448,448,3], 
+                                            strides=[1, 4, 4, 1])
             print(deconv1)
             print("_____________________________")
             return pred, deconv1
