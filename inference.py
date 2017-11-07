@@ -52,6 +52,10 @@ tf.flags.DEFINE_integer("num_class", 2, "Number of classes. Must match with the 
 tf.flags.DEFINE_integer("first_gpu_id", 0, "ID of the first GPU. Default is 0")
 tf.flags.DEFINE_integer("num_gpu", 1, "Number of GPUs to utilise. 1 or even numbers are recommended")
 tf.flags.DEFINE_integer("resolution", 448, "Resolution of input images. Must match with the resolution from the model of checkpoint")
+tf.flags.DEFINE_string("layer_name", "conv1_7x7_s2_W",
+                        "Name of the layer from which to choose a filter for deconvolution. Must be a valid layer name")
+tf.flags.DEFINE_integer("filter_id", 0, 
+                        "ID of the filter among the layer. Must be smaller than the number of filters in the layer.")
 
 # Read pretrained weights
 data_saved = {'var_epoch_saved': tf.Variable(0)}
@@ -62,7 +66,11 @@ len_input = FLAGS.resolution * FLAGS.resolution * 3
 num_class = FLAGS.num_class
 model = InceptionV1BasedModel(num_class)
 
-num_img = len([fname for fname in os.listdir() if fname.lower().endswith(["bmp","jpg","png","gif"])])
+params_inference = {
+    "num_img": len([fname for fname in os.listdir() if fname.lower().endswith(["bmp","jpg","png","gif"])]),
+    "layer_name": FLAGS.layer_name,
+    "filter_id": FLAGS.filter_id
+}
 
 with tf.device("/gpu:{0}".format(FLAGS.first_gpu_id)):
     X = tf.placeholder(tf.float32, [None, len_input])
@@ -78,7 +86,7 @@ with tf.device("/gpu:{0}".format(FLAGS.first_gpu_id)):
 for i in range(FLAGS.num_gpu):
     with tf.device("/gpu:{0}".format(i + FLAGS.first_gpu_id)):
         # Define loss, compute gradients
-        stack_pred[i], stack_deconv[i] = model.run(stack_X[i], is_training=False, num_rec=num_img)
+        stack_pred[i], stack_deconv[i] = model.run(stack_X[i], is_training=False, params_inference=params_inference)
 
 with tf.device("/gpu:{0}".format(i + FLAGS.first_gpu_id)):
     # Evaluate model
@@ -114,12 +122,12 @@ def main(unused_argv):
 
         pred_print, result_print, deconv_print = sess.run([pred, result, deconv], feed_dict={X: data_deploy})
         #pred_print, result_print = sess.run([pred, result], feed_dict={X:data_deploy})
-        print(pred_print.shape)
-        print(deconv_print.shape)
+        # print(pred_print.shape)
+        # print(deconv_print.shape)
         result_print = np.argmax(pred_print, axis=1)
         for i, fpath in enumerate(arr_fpath):
-            print(fpath, result_print[i], pred_print[i])
-            print(deconv_print[i].shape)
+            # print(fpath, result_print[i], pred_print[i])
+            # print(deconv_print[i].shape)
             dd = deconv_print[i].astype(np.uint8)
             img = Image.fromarray(dd)
             img.save("{0}.bmp".format(i))

@@ -73,7 +73,7 @@ class BaseModel(object):
     def __init__(self, num_class):
         raise NotImplementedError
 
-    def run(self, X, is_training):
+    def run(self, X, is_training, params_inference):
         raise NotImplementedError
 
 
@@ -92,7 +92,7 @@ class InceptionV1BasedModel(BaseModel):
         self.params['fc8_W'] = tf.Variable(tf.random_normal([4096, num_class]), name='fc8_W')
         self.params['fc8_b'] = tf.Variable(tf.random_normal([num_class]), name='fc8_b')
 
-    def run(self, X, is_training, num_img):
+    def run(self, X, is_training, params_inference):
         X_reshaped = tf.reshape(X, shape=self.shape)
         # X_reshaped = tf.image.random_contrast(X_reshaped, 0, 1)
 
@@ -135,17 +135,20 @@ class InceptionV1BasedModel(BaseModel):
         if is_training == True:
             return pred
         elif is_training == False:
-            switch_conv1 = tf.cast(switch_conv1, tf.float32)
-            print("____________________________")
-            print(pred)
-            print(switch_conv1)
-            deconv1 = tf.nn.conv2d_transpose(switch_conv1, 
-                                            filter=self.params['conv1_7x7_s2_W'], 
-                                            output_shape=[num_img,448,448,3], 
+            filter_deconv = tf.slice(self.params[params_inference["layer_name"]], 
+                                    [0,0,0, params_inference["filter_id"]], 
+                                    [7,7,3,1])
+            
+            switch_all = tf.cast(switch_conv1, tf.float32)
+            switch = tf.slice(  switch_all,
+                                [0,0,0, params_inference["filter_id"]],
+                                [params_inference["num_img"],112,112,1])
+            #switch_relu = tf.nn.relu(switch)
+            deconv = tf.nn.conv2d_transpose(switch,
+                                            filter=filter_deconv,
+                                            output_shape=[params_inference["num_img"],448,448,3],
                                             strides=[1, 4, 4, 1])
-            print(deconv1)
-            print("_____________________________")
-            return pred, deconv1
+            return pred, deconv
 
 
 class Vgg16Model(BaseModel):

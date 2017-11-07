@@ -9,8 +9,6 @@ from functools import reduce
 import numpy as np
 import tensorflow as tf
 
-# from params import params
-# from arxtectInceptionv1 import arxtect_inceptionv1
 from models import InceptionV1BasedModel
 
 # Define some functions... for whatever purposes
@@ -110,7 +108,7 @@ for i in range(FLAGS.num_gpu):
 
 	with tf.device("/gpu:{0}".format(i + FLAGS.first_gpu_id)):
 		# Define loss, compute gradients
-		stack_pred[i] = model.run(stack_X[i], is_training=True, num_img=-1)
+		stack_pred[i] = model.run(stack_X[i], is_training=True, params_inference={})
 		stack_xentropy[i] = tf.nn.softmax_cross_entropy_with_logits(logits=stack_pred[i], labels=stack_y[i])
 		stack_cost[i] = tf.reduce_mean(stack_xentropy[i])
 		stack_grad[i] = tf.train.AdamOptimizer(learning_rate=FLAGS.learning_rate).compute_gradients(stack_cost[i])
