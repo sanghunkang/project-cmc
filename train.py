@@ -75,7 +75,7 @@ tf.flags.DEFINE_string("ckpt_name", "ckpt", "Name of the checkpoint file")
 tf.flags.DEFINE_integer("batch_size", 128, "How many examples to process per batch for training and evaluation")
 tf.flags.DEFINE_integer("num_steps", 1000, "How many times to update weights")
 tf.flags.DEFINE_integer("display_step", 10, "How often to show logs")
-tf.flags.DEFINE_float("learning_rate", 0.001, "Learning rate, usually denoted as epsilon")
+tf.flags.DEFINE_float("learning_rate", 0.0001, "Learning rate, usually denoted as epsilon")
 tf.flags.DEFINE_integer("resolution", 448, "Resolution of input images. Default is 448")
 tf.flags.DEFINE_integer("first_gpu_id", 0, "ID of the first GPU. Default is 0")
 tf.flags.DEFINE_integer("num_gpu", 1, "Number of GPUs to utilise. 1 or even numbers are recommended. Default is 1")
@@ -90,7 +90,7 @@ data_saved = {'var_epoch_saved': tf.Variable(0)}
 # Hyperparameters
 
 # tf Graph input
-len_input = FLAGS.resolution*FLAGS.resolutio *3
+len_input = FLAGS.resolution*FLAGS.resolution*3
 num_class = len(os.listdir(FLAGS.dir_data_train)) # Normal or Abnormal
 model = InceptionV1BasedModel(num_class)
 
@@ -117,7 +117,9 @@ with tf.device("/gpu:{0}".format(i + FLAGS.first_gpu_id)):
 	#print(stack_grad[0])
 	grad = reduce(lambda x0, x1: x0 + x1, stack_grad) 
 	#grad = stack_grad[0] + stack_grad[1]
-	optimizer = tf.train.AdamOptimizer(learning_rate=FLAGS.learning_rate).apply_gradients(grad)
+	update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+	with tf.control_dependencies(update_ops):
+		optimizer = tf.train.AdamOptimizer(learning_rate=FLAGS.learning_rate).apply_gradients(grad)
 
 	# Evaluate model
 	pred = tf.concat(stack_pred, axis=0)

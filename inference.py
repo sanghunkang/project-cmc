@@ -67,7 +67,7 @@ num_class = FLAGS.num_class
 model = InceptionV1BasedModel(num_class)
 
 params_inference = {
-    "num_img": len([fname for fname in os.listdir() if fname.lower().endswith(["bmp","jpg","png","gif"])]),
+    "num_img": len([fname for fname in os.listdir(FLAGS.dir_data_inference) if fname.lower().endswith(("bmp","jpg","png","gif"))]),
     "layer_name": FLAGS.layer_name,
     "filter_id": FLAGS.filter_id
 }
@@ -92,7 +92,7 @@ with tf.device("/gpu:{0}".format(i + FLAGS.first_gpu_id)):
     # Evaluate model
     pred = tf.concat(stack_pred, axis=0)
     print(pred.get_shape())
-    result = tf.argmax(pred)
+    result = tf.argmax(pred, 1)
     print(result.get_shape())
     deconv = tf.concat(stack_deconv, axis=0)
     print(deconv.get_shape())
@@ -117,7 +117,7 @@ def main(unused_argv):
             print('Model restored')
         except tf.errors.NotFoundError:
             print('No saved model found')	
-        arr_fpath = generate_arr_fpath(FLAGS.dir_data_deploy)
+        arr_fpath = generate_arr_fpath(FLAGS.dir_data_inference)
         data_deploy = generate_arr_rec(arr_fpath, (FLAGS.resolution,FLAGS.resolution,3))
 
         pred_print, result_print, deconv_print = sess.run([pred, result, deconv], feed_dict={X: data_deploy})
@@ -126,7 +126,7 @@ def main(unused_argv):
         # print(deconv_print.shape)
         result_print = np.argmax(pred_print, axis=1)
         for i, fpath in enumerate(arr_fpath):
-            # print(fpath, result_print[i], pred_print[i])
+            print(fpath, result_print[i], pred_print[i])
             # print(deconv_print[i].shape)
             dd = deconv_print[i].astype(np.uint8)
             img = Image.fromarray(dd)
