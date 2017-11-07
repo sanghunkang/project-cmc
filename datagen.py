@@ -97,7 +97,7 @@ def write_pickles(arr_rec, dir_dst, prefix_fname, classlabel):
 dir_src = "./"
 dir_dst = "./"
 prefix_fname = ""
-resolution = (224,224,3)
+resolution = (448,448,3)
 sample_size = 1000
 classlabels = "N0123"
 is_balanced = True

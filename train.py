@@ -9,8 +9,6 @@ from functools import reduce
 import numpy as np
 import tensorflow as tf
 
-# from params import params
-# from arxtectInceptionv1 import arxtect_inceptionv1
 from models import InceptionV1BasedModel
 
 # Define some functions... for whatever purposes
@@ -27,7 +25,6 @@ def read_data(fpath):
 	return data
 
 def generate_stack_data(dirpath):
-	print("____________________________________")
 	for fpath in os.listdir(dirpath): print(fpath)
 	print("____________________________________")
 	return [read_data(os.path.join(dirpath, fpath)) for fpath in os.listdir(dirpath)]
@@ -56,9 +53,6 @@ def feed_dict(stack_data, batch_size, len_input):
 	return:
 					: dict, {X: np.array of shape(len_input, batch_size), y: np.array of shape(num_class, batch_size)}
 	"""
-	#print("++++++++++++++++++++++++++++++++++++++++")
-	#print(len(stack_data))	
-	#print("++++++++++++++++++++++++++++++++++++++++")
 	assert batch_size%len(stack_data)==0, "Batch size must be a multiplication of the number of classes"
 
 	batch_size_each = batch_size//len(stack_data)
@@ -73,16 +67,18 @@ def feed_dict(stack_data, batch_size, len_input):
 # Inception-v1
 FLAGS = tf.flags.FLAGS
 
-tf.flags.DEFINE_string("dir_data_train", "../../dev-data/project-cmc/pickle/train.", "Directory containing train pickle files")
-tf.flags.DEFINE_string("dir_data_eval", "../../dev-data/project-cmc/pickle/eval", "Directory containing evaluation pickle files")
-tf.flags.DEFINE_string("ckpt_name", "ckpt", "Name of ckpt file")
+tf.flags.DEFINE_string("dir_data_train", "../../dev-data/project-cmc/pickle/train.", 
+	"Directory where the training pickle files are located")
+tf.flags.DEFINE_string("dir_data_eval", "../../dev-data/project-cmc/pickle/eval",
+	"Directory where the validation pickle files are located")
+tf.flags.DEFINE_string("ckpt_name", "ckpt", "Name of the checkpoint file")
 tf.flags.DEFINE_integer("batch_size", 128, "How many examples to process per batch for training and evaluation")
 tf.flags.DEFINE_integer("num_steps", 1000, "How many times to update weights")
-tf.flags.DEFINE_integer("display_step", 10, "(Should have been) How often to show logs")
-tf.flags.DEFINE_float("learning_rate", 0.001, "Learning rate, epsilon")
-
-tf.flags.DEFINE_integer("first_gpu_id", 0, "id of the first gpu")
-tf.flags.DEFINE_integer("num_gpu",1, "Number of gpu to utilise, even numbers are recommended")
+tf.flags.DEFINE_integer("display_step", 10, "How often to show logs")
+tf.flags.DEFINE_float("learning_rate", 0.0001, "Learning rate, usually denoted as epsilon")
+tf.flags.DEFINE_integer("resolution", 448, "Resolution of input images. Default is 448")
+tf.flags.DEFINE_integer("first_gpu_id", 0, "ID of the first GPU. Default is 0")
+tf.flags.DEFINE_integer("num_gpu", 1, "Number of GPUs to utilise. 1 or even numbers are recommended. Default is 1")
 
 # Read pretrained weights
 dict_lyr = np.load("../../dev-data/weight-pretrained/googlenet.npy", encoding='latin1').item() # return dict
@@ -94,7 +90,7 @@ data_saved = {'var_epoch_saved': tf.Variable(0)}
 # Hyperparameters
 
 # tf Graph input
-len_input = 448*448*3
+len_input = FLAGS.resolution*FLAGS.resolution*3
 num_class = len(os.listdir(FLAGS.dir_data_train)) # Normal or Abnormal
 model = InceptionV1BasedModel(num_class)
 
@@ -112,7 +108,7 @@ for i in range(FLAGS.num_gpu):
 
 	with tf.device("/gpu:{0}".format(i + FLAGS.first_gpu_id)):
 		# Define loss, compute gradients
-		stack_pred[i] = model.run(stack_X[i], is_training=True)
+		stack_pred[i] = model.run(stack_X[i], is_training=True, params_inference={})
 		stack_xentropy[i] = tf.nn.softmax_cross_entropy_with_logits(logits=stack_pred[i], labels=stack_y[i])
 		stack_cost[i] = tf.reduce_mean(stack_xentropy[i])
 		stack_grad[i] = tf.train.AdamOptimizer(learning_rate=FLAGS.learning_rate).compute_gradients(stack_cost[i])
@@ -124,7 +120,9 @@ with tf.device("/gpu:{0}".format(i + FLAGS.first_gpu_id)):
 	grad = reduce(lambda x0, x1: x0 + x1, stack_grad) 
 	print(grad)
 	#grad = stack_grad[0] + stack_grad[1]
-	optimizer = tf.train.AdamOptimizer(learning_rate=FLAGS.learning_rate).apply_gradients(grad)
+	update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+	with tf.control_dependencies(update_ops):
+		optimizer = tf.train.AdamOptimizer(learning_rate=FLAGS.learning_rate).apply_gradients(grad)
 
 	# Evaluate model
 	pred = tf.concat(stack_pred, axis=0)
@@ -153,11 +151,6 @@ def main(unused_argv):
 
 		stack_data_train = generate_stack_data(FLAGS.dir_data_train)
 		stack_data_eval = generate_stack_data(FLAGS.dir_data_eval)
-
-		# data_train = read_data(FLAGS.fpath_data_train)
-		# data_test = read_data(FLAGS.fpath_data_validation)
-		# print(data_train.shape)
-		# print(data_test.shape)
 
 		summaries_dir = './logs_{0}'.format(FLAGS.ckpt_name)
 		train_writer = tf.summary.FileWriter(summaries_dir + '/train', sess.graph)

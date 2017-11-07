@@ -7,7 +7,6 @@
 import numpy as np
 import tensorflow as tf
 
-
 def reformat_params(dict_lyr):
     """
 	Convert {layer:{Weight, bias}} into {layer_Weight, layer_bias} for easier referencing
@@ -23,7 +22,6 @@ def reformat_params(dict_lyr):
         params_pre[key + "_b"] = tf.Variable(dict_lyr[key]["biases"], name=key + "_b")
     return params_pre
 
-
 def slice_params_module(name_module, params_pre):
     params_module = {}
     keys = [key for key in params_pre]
@@ -32,29 +30,23 @@ def slice_params_module(name_module, params_pre):
             params_module[key.replace(name_module, "")] = params_pre[key]
     return params_module
 
-
 def conv2d(x, W, b, strides=1):
     # Conv2D wrapper, with bias and relu activation
     x = tf.nn.conv2d(x, W, strides=[1, strides, strides, 1], padding='SAME')
     x = tf.nn.bias_add(x, b)
     return tf.nn.relu(x)
 
-
 def maxpool2d(x, k=2, name=None):
     # MaxPool2D wrapper
-    # if is_switch == True: return tf.nn.max_pool(x, ksize=[1, k, k, 1], strides=[1, k, k, 1], padding='SAME'), None
     return tf.nn.max_pool_with_argmax(x, ksize=[1, k, k, 1], strides=[1, k, k, 1], padding='SAME', name=name)
-
 
 def conv2ser(x, params_fc):
     return tf.reshape(x, [-1, params_fc.get_shape().as_list()[0]])
-
 
 def fc1d(x, W, b):
     # FC layer wrapper, with bias, relu activation plus batch-normalisation if demanded
     fc = tf.add(tf.matmul(x, W), b)
     return tf.nn.relu(fc)
-
 
 def inception_module(tsr_X, name_module, params):
     params_module = slice_params_module(name_module, params)
@@ -81,7 +73,7 @@ class BaseModel(object):
     def __init__(self, num_class):
         raise NotImplementedError
 
-    def run(self, X, is_training):
+    def run(self, X, is_training, params_inference):
         raise NotImplementedError
 
 
@@ -100,10 +92,11 @@ class InceptionV1BasedModel(BaseModel):
         self.params['fc8_W'] = tf.Variable(tf.random_normal([4096, num_class]), name='fc8_W')
         self.params['fc8_b'] = tf.Variable(tf.random_normal([num_class]), name='fc8_b')
 
-    def run(self, X, is_training, num_rec=11, index_filter=0, name_layer="conv1"):
+    def run(self, X, is_training, params_inference):
         X_reshaped = tf.reshape(X, shape=self.shape)
+        # X_reshaped = tf.image.random_contrast(X_reshaped, 0, 1)
 
-        # Convolution and max pooling(down-sampling) Layers
+        # Convolution and max pooling(down-sampling) layers.
         # Convolution parameters are from pretrained data
         conv1_7x7_s2 = conv2d(X_reshaped, self.params['conv1_7x7_s2_W'], self.params['conv1_7x7_s2_b'], strides=2)
         conv1_7x7p_s2, switch_conv1 = maxpool2d(conv1_7x7_s2, k=2, name="switch")
@@ -126,31 +119,35 @@ class InceptionV1BasedModel(BaseModel):
         inception_5a = inception_module(inception_4ep, "inception_5a_", self.params)
         inception_5b = inception_module(inception_5a, "inception_5b_", self.params)
         inception_5ap = tf.nn.avg_pool(inception_5b, ksize=[1, 7, 7, 1], strides=[1, 7, 7, 1], padding='SAME')
+        print(inception_5ap.get_shape())
 
         # Fully connected layer
         fc5 = tf.reshape(inception_5ap, [-1, self.params["fc6_W"].get_shape().as_list()[0]])
-        fc5 = tf.contrib.layers.batch_norm(fc5, is_training=is_training, trainable=True)#, reuse=True)
+        fc5 = tf.contrib.layers.batch_norm(fc5, is_training=is_training)#, reuse=True)
 
         fc6 = fc1d(fc5 , self.params["fc6_W"], self.params["fc6_b"])
-        fc6 = tf.contrib.layers.batch_norm(fc6, is_training=is_training, trainable=True)#, reuse=True)
+        fc6 = tf.contrib.layers.batch_norm(fc6, is_training=is_training)#, reuse=True)
 
         fc7 = fc1d(fc6, self.params["fc7_W"], self.params["fc7_b"])
-        fc7 = tf.contrib.layers.batch_norm(fc7, is_training=is_training, trainable=True)#, reuse=True)
+        fc7 = tf.contrib.layers.batch_norm(fc7, is_training=is_training)#, reuse=True)
 
         pred = fc1d(fc7, self.params["fc8_W"], self.params["fc8_b"])
         if is_training == True:
             return pred
         elif is_training == False:
-            index_deconv = 10
-            filter_deconv = tf.slice(self.params['conv1_7x7_s2_W'],[0,0,0,index_deconv],[7,7,3,1])
+            filter_deconv = tf.slice(self.params[params_inference["layer_name"]], 
+                                    [0,0,0, params_inference["filter_id"]], 
+                                    [7,7,3,1])
             
             switch_all = tf.cast(switch_conv1, tf.float32)
-            switch = tf.slice(switch_all, [0,0,0,index_deconv],[num_rec,112,112,1])
+            switch = tf.slice(  switch_all,
+                                [0,0,0, params_inference["filter_id"]],
+                                [params_inference["num_img"],112,112,1])
             #switch_relu = tf.nn.relu(switch)
             deconv = tf.nn.conv2d_transpose(switch,
-                                             filter=filter_deconv,
-                                             output_shape=[num_rec,448,448,3],
-                                             strides=[1, 4, 4, 1])
+                                            filter=filter_deconv,
+                                            output_shape=[params_inference["num_img"],448,448,3],
+                                            strides=[1, 4, 4, 1])
             return pred, deconv
 
 
