@@ -56,9 +56,9 @@ def feed_dict(stack_data, batch_size, len_input):
 	assert batch_size%len(stack_data)==0, "Batch size must be a multiplication of the number of classes"
 
 	batch_size_each = batch_size//len(stack_data)
-	batch = np.zeros(shape=(batch_size, len_input+len(stack_data)), dtype=np.float32)
+	batch = np.zeros(shape=(batch_size, len_input+num_class), dtype=np.float32)
 	for i, data in enumerate(stack_data):
-		# print(i, batch_size_each, data.shape[0])
+		#print(i, batch_size_each, data.shape, batch.shape)
 		batch[i*batch_size_each:(i + 1)*batch_size_each] = data[np.random.choice(data.shape[0], size=batch_size_each, replace=True)]
 	np.random.shuffle(batch)
 	# batch = data[np.random.choice(data.shape[0], size=batch_size,  replace=True)]
@@ -76,7 +76,7 @@ tf.flags.DEFINE_integer("batch_size", 128, "How many examples to process per bat
 tf.flags.DEFINE_integer("num_steps", 1000, "How many times to update weights")
 tf.flags.DEFINE_integer("display_step", 10, "How often to show logs")
 tf.flags.DEFINE_float("learning_rate", 0.0001, "Learning rate, usually denoted as epsilon")
-tf.flags.DEFINE_integer("resolution", 448, "Resolution of input images. Default is 448")
+tf.flags.DEFINE_integer("resolution", 896, "Resolution of input images. Default is 448")
 tf.flags.DEFINE_integer("first_gpu_id", 0, "ID of the first GPU. Default is 0")
 tf.flags.DEFINE_integer("num_gpu", 1, "Number of GPUs to utilise. 1 or even numbers are recommended. Default is 1")
 
@@ -91,7 +91,7 @@ data_saved = {'var_epoch_saved': tf.Variable(0)}
 
 # tf Graph input
 len_input = FLAGS.resolution*FLAGS.resolution*3
-num_class = len(os.listdir(FLAGS.dir_data_train)) # Normal or Abnormal
+num_class = 2#int(len(os.listdir(FLAGS.dir_data_train))/4) # Normal or Abnormal
 model = InceptionV1BasedModel(num_class)
 
 with tf.device("/gpu:{0}".format(FLAGS.first_gpu_id)):

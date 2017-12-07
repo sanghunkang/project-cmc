@@ -129,7 +129,9 @@ for i, classlabel in enumerate(classlabels):
 
 arr_rec_final = np.vstack(stack_arr_rec)
 print(arr_rec_final.shape, vec_class)
-write_pickles(arr_rec_final, dir_dst, prefix_fname, classlabel)
+#len_arr = len(arr_rec_final)
+for i in range(4):
+	write_pickles(np.array_split(arr_rec_final, 4)[i], dir_dst, prefix_fname+str(i), classlabel)
 
 # seq_seq_fpath = generate_seq_seq_fpath(dir_src, classlabel, sample_size, is_balanced)
 # seq_seq_rec = serialize_dir(seq_seq_fpath)
