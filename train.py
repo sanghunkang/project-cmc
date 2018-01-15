@@ -91,7 +91,7 @@ data_saved = {'var_epoch_saved': tf.Variable(0)}
 
 # tf Graph input
 len_input = FLAGS.resolution*FLAGS.resolution*3
-num_class = 2#int(len(os.listdir(FLAGS.dir_data_train))/4) # Normal or Abnormal
+num_class = 5#int(len(os.listdir(FLAGS.dir_data_train))/4) # Normal or Abnormal
 model = InceptionV1BasedModel(num_class)
 
 with tf.device("/gpu:{0}".format(FLAGS.first_gpu_id)):
